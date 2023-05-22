@@ -36,6 +36,16 @@
     </rect>
    </property>
   </widget>
+  <widget class="QTextBrowser" name="chatBox">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>581</width>
+     <height>361</height>
+    </rect>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections/>
