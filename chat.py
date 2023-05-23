@@ -5,7 +5,7 @@ from message import Message
 from kafka import KafkaProducer
 from kafka import KafkaConsumer
 
-from PyQt5.QtWidgets import QApplication, QTextEdit, QPushButton, QTextBrowser
+from PyQt5.QtWidgets import QApplication
 
 import sys
 
@@ -24,8 +24,6 @@ class Chat:
         self.chat_window = MyMainWindow()
 
         self.show_chat_dialog()
-
-        self.receive_message()
 
     def show_chat_dialog(self):
 
