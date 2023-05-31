@@ -48,6 +48,12 @@ class Chat:
 
             self.chat_window.textEdit.setText('')
 
+        else:
+            chatBox = self.chat_window.chatBox
+
+            red_text = '<span style="color: red;">Cant Send an Empty Message !</span><br>'
+            chatBox.insertHtml(red_text)
+
     def receive_message(self):
         for consumer_message in self.consumer:
             message = Message.from_json(consumer_message.value)
