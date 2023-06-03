@@ -1,7 +1,8 @@
 from socketio import Client
 
 client = Client()
-clientName = 'Client 1'
+
+clientName = 'Client 2'
 
 
 def ConstructMessage(message, sender):
@@ -27,8 +28,7 @@ def handle_connect():
 
 
 if __name__ == '__main__':
-    client.connect('http://localhost:5050')
+    client.connect('http://16.170.255.185:8888')
     while True:
         msg = input()
         client.emit('message', ConstructMessage(msg, f"{clientName}"))
-
