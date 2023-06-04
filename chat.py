@@ -2,9 +2,6 @@ from constants import *
 from ui import MyMainWindow
 from message import Message
 
-from kafka import KafkaProducer
-from kafka import KafkaConsumer
-
 from PyQt5.QtWidgets import QApplication
 
 import sys
@@ -13,10 +10,6 @@ import sys
 class Chat:
 
     def __init__(self):
-        self.producer = KafkaProducer(** producer_config, api_version=(0, 10, 1))
-
-        self.consumer = KafkaConsumer(TOPIC_NAME, api_version=(0, 10, 1), **consumer_config)
-
         # Create the application instance
         self.app = QApplication(sys.argv)
 
@@ -42,10 +35,6 @@ class Chat:
         if text_message != '':
             message = Message(user_name='Tera_Byte', text=text_message)
 
-            self.producer.send(TOPIC_NAME, value=message.to_json())
-
-            self.producer.flush()
-
             self.chat_window.textEdit.setText('')
 
         else:
@@ -55,12 +44,11 @@ class Chat:
             chatBox.insertHtml(red_text)
 
     def receive_message(self):
-        for consumer_message in self.consumer:
-            message = Message.from_json(consumer_message.value)
+        message = Message.from_json("{'user_name': 'Ahmed Sameh', }")
 
-            print("User Name:", message.user_name)
-            print("Message:", message.text)
+        print("User Name:", message.user_name)
+        print("Message:", message.text)
 
-            chatBox = self.chat_window.chatBox
+        chatBox = self.chat_window.chatBox
 
-            chatBox.append(message.format_message())
+        chatBox.append(message.format_message())

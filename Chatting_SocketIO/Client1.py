@@ -4,7 +4,7 @@ client = Client()
 clientName = 'Client 1'
 
 
-def ConstructMessage(message, sender):
+def construct_message(message, sender):
     return {
         'msg': message,
         'sender': sender
@@ -27,13 +27,9 @@ def handle_connect():
 
 
 if __name__ == '__main__':
-    connected=False
     
     while True:
-            client.connect('http://16.170.255.185:8888')
-            print('Socket established')
-            connected = True
-            msg = input()
-            client.emit('message', ConstructMessage(msg, f"{clientName}"))
-
-
+        client.connect('http://16.170.255.185:8888')
+        print('Socket established')
+        msg = input()
+        client.emit('message', construct_message(msg, f"{clientName}"))

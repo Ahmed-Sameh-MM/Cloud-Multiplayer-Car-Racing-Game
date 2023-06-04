@@ -5,7 +5,7 @@ app = Flask(__name__)
 socketio = SocketIO(app)
 
 
-def ConstructMessage(message, sender):
+def construct_message(message, sender):
     return {
         'msg': message,
         'sender': sender
@@ -14,12 +14,12 @@ def ConstructMessage(message, sender):
 
 @socketio.on('connect')
 def handle_connect():
-    emit('message', ConstructMessage('Client Connected', "Server"), broadcast=True)
+    emit('message', construct_message('Client Connected', "Server"), broadcast=True)
 
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    emit('message', ConstructMessage('Client Disconnected', "Server"), broadcast=True)
+    emit('message', construct_message('Client Disconnected', "Server"), broadcast=True)
 
 
 @socketio.on('message')

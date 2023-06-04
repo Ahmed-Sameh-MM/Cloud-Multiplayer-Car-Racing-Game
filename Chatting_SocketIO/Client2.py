@@ -5,7 +5,7 @@ client = Client()
 clientName = 'Client 2'
 
 
-def ConstructMessage(message, sender):
+def construct_message(message, sender):
     return {
         'msg': message,
         'sender': sender
@@ -31,4 +31,4 @@ if __name__ == '__main__':
     client.connect('http://16.170.255.185:8888')
     while True:
         msg = input()
-        client.emit('message', ConstructMessage(msg, f"{clientName}"))
+        client.emit('message', construct_message(msg, f"{clientName}"))

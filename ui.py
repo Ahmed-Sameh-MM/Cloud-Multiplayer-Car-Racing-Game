@@ -1,8 +1,6 @@
 from constants import *
 from message import Message
 
-from kafka import KafkaConsumer
-
 from PyQt5 import uic
 from PyQt5.QtWidgets import QMainWindow, QTextEdit, QTextBrowser, QPushButton
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QObject, QThread
@@ -34,20 +32,20 @@ class MyMainWindow(QMainWindow):
 
         self.sendButton = self.findChild(QPushButton, 'sendButton')
 
-        self.kafka_consumer = KafkaConsumerWrapper()
-        self.kafka_consumer.messageReceived.connect(self.update_text_browser)
+        self.consumer = ConsumerWrapper()
+        self.consumer.messageReceived.connect(self.update_text_browser)
 
-        self.kafka_consumer_thread = QThread()
-        self.kafka_consumer.moveToThread(self.kafka_consumer_thread)
-        self.kafka_consumer_thread.started.connect(self.kafka_consumer.consume_messages)
-        self.kafka_consumer_thread.start()
+        self.consumer_thread = QThread()
+        self.consumer.moveToThread(self.consumer_thread)
+        self.consumer_thread.started.connect(self.consumer.consume_messages)
+        self.consumer_thread.start()
 
     @pyqtSlot(str)
     def update_text_browser(self, message):
         self.chatBox.append(message)
 
 
-class KafkaConsumerWrapper(QObject):
+class ConsumerWrapper(QObject):
     messageReceived = pyqtSignal(str)
 
     def __init__(self):
@@ -55,13 +53,9 @@ class KafkaConsumerWrapper(QObject):
 
     @pyqtSlot()
     def consume_messages(self):
-        consumer = KafkaConsumer(TOPIC_NAME, api_version=(0, 10, 1), **consumer_config)
-        consumer.subscribe([TOPIC_NAME])
+        message = Message.from_json("{'user_name': 'Ahmed Sameh', }")
 
-        for consumer_message in consumer:
-            message = Message.from_json(consumer_message.value)
+        print("User Name:", message.user_name)
+        print("Message:", message.text)
 
-            print("User Name:", message.user_name)
-            print("Message:", message.text)
-
-            self.messageReceived.emit(message.format_message())
+        self.messageReceived.emit(message.format_message())
