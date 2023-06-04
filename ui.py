@@ -1,4 +1,3 @@
-from constants import *
 from message import Message
 
 from PyQt5 import uic

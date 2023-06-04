@@ -1,4 +1,3 @@
-from constants import *
 from ui import MyMainWindow
 from message import Message
 
@@ -33,7 +32,7 @@ class Chat:
         text_message = self.chat_window.textEdit.toPlainText()
 
         if text_message != '':
-            message = Message(user_name='Tera_Byte', text=text_message)
+            message = Message(user_name='Tera_Byte', body=text_message)
 
             self.chat_window.textEdit.setText('')
 

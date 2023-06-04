@@ -3,12 +3,12 @@ import json
 
 class Message:
 
-    def __init__(self, user_name: str, text: str):
+    def __init__(self, user_name: str, body: str):
         self.user_name = user_name
-        self.text = text
+        self.body = body
 
     def format_message(self):
-        return self.user_name + ': ' + self.text
+        return self.user_name + ': ' + self.body
 
     def to_json(self):
         return json.dumps(self.__dict__)
