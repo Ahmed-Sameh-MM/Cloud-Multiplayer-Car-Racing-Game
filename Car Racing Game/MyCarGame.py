@@ -1,10 +1,12 @@
 import pygame
 from time import sleep
 
+# 4,5,6 done
 pygame.font.init()
 WIDTH, HEIGHT = 800, 600
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 
+# 10-31 done
 myRoad = pygame.transform.scale(pygame.image.load("img/back_ground.jpg"), (WIDTH, HEIGHT))
 BG_SPEED = 3
 
@@ -29,7 +31,8 @@ def updateDisplay():
 
 def main():
     run = True
-
+    
+    # done
     myCar = pygame.image.load("img/car.png")
 
     myCar_x_coordinate = 200
@@ -40,14 +43,14 @@ def main():
     myRoad_y1_coordinate = 0
     myRoad_y2_coordinate = -600
 
-    enemy_car_1 = pygame.image.load("img/enemy_car_1.png")
-    enemy_car_2 = pygame.image.load("img/enemy_car_2.png")
+    # enemy_car_1 = pygame.image.load("img/enemy_car_1.png")
+    # enemy_car_2 = pygame.image.load("img/enemy_car_2.png")
 
-    enemyOne_x_coordinate = 370
-    enemyOne_y_coordinate = HEIGHT - CAR_HEIGHT - 10
+    # enemyOne_x_coordinate = 370
+    # enemyOne_y_coordinate = HEIGHT - CAR_HEIGHT - 10
 
-    enemyTwo_x_coordinate = 550
-    enemyTwo_y_coordinate = HEIGHT - CAR_HEIGHT - 10
+    # enemyTwo_x_coordinate = 550
+    # enemyTwo_y_coordinate = HEIGHT - CAR_HEIGHT - 10
 
     clock = pygame.time.Clock()
 
@@ -85,27 +88,27 @@ def main():
         if myRoad_y2_coordinate >= HEIGHT:
             myRoad_y2_coordinate = -600
 
-        if myCar_x_coordinate + CAR_WIDTH > enemyOne_x_coordinate \
-           and myCar_x_coordinate < enemyOne_x_coordinate + CAR_WIDTH \
-           and myCar_y_coordinate < enemyTwo_y_coordinate :
-            text = FONT.render("Game OVER!!", True, (255, 255, 255))
-            WIN.blit(text, (400 - text.get_width() // 2, 240 - text.get_height() // 2))
-            move(myCar, myCar_x_coordinate, myCar_y_coordinate)
-            move(enemy_car_1, enemyOne_x_coordinate, enemyOne_y_coordinate)
-            move(enemy_car_2, enemyTwo_x_coordinate, enemyTwo_y_coordinate)
-            updateDisplay()
-            sleep(1)
-            drawGame()
-            myCar_x_coordinate = 200
-            myCar_y_coordinate = HEIGHT - CAR_HEIGHT
-            move(myCar, 200, HEIGHT - CAR_HEIGHT)
-            move(enemy_car_1, 370, HEIGHT - CAR_HEIGHT - 10)
-            move(enemy_car_2, 550, HEIGHT - CAR_HEIGHT - 10)
-            updateDisplay()
+        # if myCar_x_coordinate + CAR_WIDTH > enemyOne_x_coordinate \
+        #    and myCar_x_coordinate < enemyOne_x_coordinate + CAR_WIDTH \
+        #    and myCar_y_coordinate < enemyTwo_y_coordinate :
+        #     text = FONT.render("Game OVER!!", True, (255, 255, 255))
+        #     WIN.blit(text, (400 - text.get_width() // 2, 240 - text.get_height() // 2))
+        #     move(myCar, myCar_x_coordinate, myCar_y_coordinate)
+        #     move(enemy_car_1, enemyOne_x_coordinate, enemyOne_y_coordinate)
+        #     move(enemy_car_2, enemyTwo_x_coordinate, enemyTwo_y_coordinate)
+        #     updateDisplay()
+        #     sleep(1)
+        #     drawGame()
+        #     myCar_x_coordinate = 200
+        #     myCar_y_coordinate = HEIGHT - CAR_HEIGHT
+        #     move(myCar, 200, HEIGHT - CAR_HEIGHT)
+        #     move(enemy_car_1, 370, HEIGHT - CAR_HEIGHT - 10)
+        #     move(enemy_car_2, 550, HEIGHT - CAR_HEIGHT - 10)
+        #     updateDisplay()
 
         move(myCar, myCar_x_coordinate, myCar_y_coordinate)
-        move(enemy_car_1, enemyOne_x_coordinate, enemyOne_y_coordinate)
-        move(enemy_car_2, enemyTwo_x_coordinate, enemyTwo_y_coordinate)
+        # move(enemy_car_1, enemyOne_x_coordinate, enemyOne_y_coordinate)
+        # move(enemy_car_2, enemyTwo_x_coordinate, enemyTwo_y_coordinate)
 
         updateDisplay()
 
