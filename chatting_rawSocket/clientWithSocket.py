@@ -5,6 +5,9 @@ from PyQt5.QtCore import Qt
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, \
     QTextEdit, QMessageBox
+
+from message import Message
+
 print(sys.path)
 
 HOST = '74.235.160.135'
@@ -28,18 +31,17 @@ def listen_for_messages_from_server(client):
 
         message = client.recv(2048).decode('utf-8')
         if message != '':
-            username = message.split("~")[0]
-            content = message.split('~')[1]
-
-            add_message(f"[{username}] {content}")
+            final_message = Message.from_json(message)
+            add_message(final_message.format_message())
 
         else:
-            show_error_message("Error, Message recevied from client is empty")
+            show_error_message("Error, Message received from client is empty")
 
 
-def add_message(message):
+def add_message(message: str):
     global username
-    chat_box.append(f"{message}")
+
+    chat_box.append(message)
 
 
 def clear():
@@ -72,6 +74,8 @@ def connect():
         show_error_message("Invalid username, Username cannot be empty")
 
     threading.Thread(target=listen_for_messages_from_server, args=(client,)).start()
+
+
 def show_error_message(m):
 
     error_dialog = QMessageBox()
@@ -81,6 +85,7 @@ def show_error_message(m):
     error_dialog.setStandardButtons(QMessageBox.Ok)
     error_dialog.setWindowModality(Qt.ApplicationModal)  # Make the dialog modal
     error_dialog.exec_()
+
 
 username = ''
 app = QApplication(sys.argv)
