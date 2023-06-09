@@ -2,6 +2,7 @@ import pyodbc
 
 from credentials import *
 from message import Message
+from player import Player
 
 
 class SQL:
@@ -21,6 +22,18 @@ class SQL:
     def write_message(self, message: Message):
         data = message.message_tuple()
         self.cursor.executemany("INSERT INTO Chat (UserName, Body) VALUES (?, ?)", data)
+        self.conn.commit()
+
+    def read_all_players(self):
+        self.cursor.execute("SELECT * FROM Player")
+        rows = self.cursor.fetchall()
+        for row in rows:
+            print(row)
+
+    # Write data to a table
+    def write_player(self, player: Player):
+        data = player.player_tuple()
+        self.cursor.executemany("INSERT INTO Player (UserName, IpAddress, Progress, Rank) VALUES (?, ?, ?, ?)", data)
         self.conn.commit()
 
     def close_connection(self):
