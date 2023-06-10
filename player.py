@@ -17,4 +17,4 @@ class Player:
     @classmethod
     def from_json(cls, json_str):
         player = json.loads(json_str)
-        return cls(player['user_name'], player['ip_address'],player['progress'], player['position'])
+        return cls(player['user_name'], player['ip_address'], player['progress'], player['position'])

@@ -12,20 +12,26 @@ LISTENER_LIMIT = 5
 active_clients = []
 
 
-def receive_messages(client, username):
+def receive_messages(client_socket, username):
 
     sql = SQL()
 
     while True:
-        message = client.recv(2048).decode('utf-8')
-        if message:
-            final_message = Message(user_name=username, body=message)
-            broadcast_message(final_message)
+        try:
+            message = client_socket.recv(2048).decode('utf-8')
 
-            # write the received message to the SQL database
-            sql.write_message(final_message)
-        else:
-            print(f"The message sent from client {username} is empty")
+            if message:
+                final_message = Message(user_name=username, body=message)
+                broadcast_message(final_message)
+
+                # write the received message to the SQL database
+                sql.write_message(final_message)
+            else:
+                print(f"The message sent from client {username} is empty")
+
+        except ConnectionResetError:
+            client_socket.close()
+            break
 
 
 def send_message(client_socket, message: Message):
