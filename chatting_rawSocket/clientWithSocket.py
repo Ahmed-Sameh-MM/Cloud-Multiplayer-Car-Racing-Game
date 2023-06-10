@@ -10,7 +10,7 @@ from message import Message
 
 print(sys.path)
 
-HOST = '74.235.160.135'
+HOST = '20.102.112.191'
 PORT = 20000
 # Creating a socket object
 # AF_INET: we are going to use IPv4 addresses

@@ -21,10 +21,19 @@ class SQL:
     # Write data to a table
     def write_message(self, message: Message):
         data = message.message_tuple()
-        self.cursor.executemany("INSERT INTO Chat (UserName, Body) VALUES (?, ?)", data)
+        self.cursor.execute("INSERT INTO Chat (UserName, Body) VALUES (?, ?)", data)
         self.conn.commit()
 
-    def read_all_players(self):
+    def get_player(self, ip_address: str):
+        self.cursor.execute("SELECT * FROM Player WHERE IpAddress = ?", (ip_address,))
+        player = self.cursor.fetchone()
+        if player:
+            return player
+        else:
+            print('Player Not Found')
+            return None
+
+    def get_all_players(self):
         self.cursor.execute("SELECT * FROM Player")
         rows = self.cursor.fetchall()
         for row in rows:
