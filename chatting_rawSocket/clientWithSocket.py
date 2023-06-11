@@ -10,7 +10,8 @@ from message import Message
 
 print(sys.path)
 
-HOST = '20.102.112.191'
+MAIN_HOST = '40.76.226.192'
+BACKUP_HOST = '20.51.244.35'
 PORT = 20000
 # Creating a socket object
 # AF_INET: we are going to use IPv4 addresses
@@ -62,11 +63,11 @@ def connect():
     username = username_field.text()
     try:
         # Connect to the server
-        client.connect((HOST, PORT))
+        client.connect((MAIN_HOST, PORT))
         print("Successfully connected to server")
         add_message("[SERVER] Successfully connected to the server")
     except:
-        show_error_message("Unable to connect to server, Unable to connect to server {HOST} {PORT}")
+        show_error_message(f"Unable to connect to server, Unable to connect to server {MAIN_HOST} {PORT}")
     if username != '':
         client.sendall(username.encode())
 

@@ -1,6 +1,6 @@
 import pyodbc
 
-from credentials import *
+from sql_server_credentials import *
 from message import Message
 from player import Player
 
