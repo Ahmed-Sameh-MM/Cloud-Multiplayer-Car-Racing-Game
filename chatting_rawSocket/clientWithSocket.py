@@ -8,15 +8,17 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHB
 
 from message import Message
 
+
 print(sys.path)
 
-MAIN_HOST = '40.76.226.192'
+MAIN_HOST = 'localhost'
 BACKUP_HOST = '20.51.244.35'
-PORT = 20000
+PORT = 1234
 # Creating a socket object
 # AF_INET: we are going to use IPv4 addresses
 # SOCK_STREAM: we are using TCP packets for communication
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+listening_thread = threading.Thread()
 
 
 def open_window2():
@@ -29,19 +31,18 @@ def open_window2():
 
 def listen_for_messages_from_server(client):
     while True:
-
         message = client.recv(2048).decode('utf-8')
+        print(message)
         if message != '':
             final_message = Message.from_json(message)
             add_message(final_message.format_message())
 
         else:
-            show_error_message("Error, Message received from client is empty")
+            print("Message received from server is empty")
 
 
 def add_message(message: str):
     global username
-
     chat_box.append(message)
 
 
@@ -52,29 +53,43 @@ def clear():
 def send_message():
     message = text_editor.text()
     if message != '':
-        client.sendall(message.encode())
+        client_socket.sendall(message.encode())
         text_editor.clear()
     else:
         show_error_message("Empty message, Message cannot be empty")
 
 
 def connect():
+    global listening_thread
+
     # try except block
     username = username_field.text()
-    try:
-        # Connect to the server
-        client.connect((MAIN_HOST, PORT))
-        print("Successfully connected to server")
-        add_message("[SERVER] Successfully connected to the server")
-    except:
-        show_error_message(f"Unable to connect to server, Unable to connect to server {MAIN_HOST} {PORT}")
     if username != '':
-        client.sendall(username.encode())
+        try:
+            # Connect to the server
+            client_socket.connect((MAIN_HOST, PORT))
+            print("Successfully connected to server")
+            open_window2()
+            add_message("[SERVER] Successfully connected to the server")
+            client_socket.sendall(username.encode())
+            listening_thread = threading.Thread(target=listen_for_messages_from_server, args=(client_socket,))
+            listening_thread.start()
 
+        except:
+            show_error_message(f"Unable to connect to server, Unable to connect to server {MAIN_HOST} {PORT}")
     else:
         show_error_message("Invalid username, Username cannot be empty")
 
-    threading.Thread(target=listen_for_messages_from_server, args=(client,)).start()
+
+def close_event_handler(event):
+    # Perform any cleanup or additional actions before closing the window
+    close_connection()
+    event.accept()
+
+
+def close_connection():
+    print("Window is closing")
+    client_socket.close()
 
 
 def show_error_message(m):
@@ -99,7 +114,6 @@ username_field = QLineEdit(window1)
 username_field.setGeometry(10, 10, 180, 25)
 join_button = QPushButton("Join", window1)
 join_button.setGeometry(200, 10, 80, 25)
-join_button.clicked.connect(open_window2)
 join_button.clicked.connect(connect)
 
 window2 = None  # Declare window2 object globally
@@ -107,7 +121,7 @@ text_editor = QLineEdit(window2)
 window2 = QWidget()
 window2.setWindowTitle("Chat Room - Window 2")
 window2.setGeometry(100, 100, 400, 300)
-
+window2.closeEvent = close_event_handler
 layout = QVBoxLayout(window2)
 
 chat_box = QTextEdit(window2)
