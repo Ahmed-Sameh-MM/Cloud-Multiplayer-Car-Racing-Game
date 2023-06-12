@@ -11,13 +11,6 @@ class SQL:
         self.conn = pyodbc.connect(connection_string)
         self.cursor = self.conn.cursor()
 
-    # Read data from a table
-    def read_all_messages(self):
-        self.cursor.execute("SELECT * FROM Chat")
-        rows = self.cursor.fetchall()
-        for row in rows:
-            print(row)
-
     # Write data to a table
     def write_message(self, message: Message):
         data = message.message_tuple()

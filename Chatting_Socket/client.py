@@ -1,6 +1,6 @@
 import socket
 import sys
-import threading
+from threading import Thread
 from PyQt5.QtCore import Qt
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, \
@@ -11,14 +11,14 @@ from message import Message
 
 print(sys.path)
 
-MAIN_HOST = 'localhost'
+MAIN_HOST = '40.76.226.192'
 BACKUP_HOST = '20.51.244.35'
-PORT = 1234
+PORT = 20000
 # Creating a socket object
 # AF_INET: we are going to use IPv4 addresses
 # SOCK_STREAM: we are using TCP packets for communication
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-listening_thread = threading.Thread()
+listening_thread = Thread()
 
 
 def open_window2():
@@ -72,7 +72,7 @@ def connect():
             open_window2()
             add_message("[SERVER] Successfully connected to the server")
             client_socket.sendall(username.encode())
-            listening_thread = threading.Thread(target=listen_for_messages_from_server, args=(client_socket,))
+            listening_thread = Thread(target=listen_for_messages_from_server, args=(client_socket,))
             listening_thread.start()
 
         except:
