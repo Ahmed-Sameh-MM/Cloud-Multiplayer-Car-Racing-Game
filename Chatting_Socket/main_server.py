@@ -12,6 +12,8 @@ MAIN_SERVER_PORT = 20000
 
 BACKUP_SERVER_HOST = '20.51.244.35'
 BACKUP_SERVER_PORT = 40000
+backup_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
 LISTENER_LIMIT = 5
 
 active_clients: List[ActiveClient] = []
@@ -20,10 +22,6 @@ sql = SQL()
 
 
 def receive_messages(active_client: ActiveClient):
-
-    backup_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    backup_server_socket.connect((BACKUP_SERVER_HOST, BACKUP_SERVER_PORT))
 
     while True:
         try:
@@ -35,7 +33,7 @@ def receive_messages(active_client: ActiveClient):
                 # write the received message to the SQL database
                 sql.write_message(final_message)
 
-                send_message_to_backup_server(backup_server_socket, final_message)
+                send_message_to_backup_server(final_message)
             else:
                 print(f"The message sent from client {active_client.user_name} is empty")
 
@@ -57,7 +55,7 @@ def send_message(client_socket, message: Message):
     client_socket.sendall(message.to_json().encode())
 
 
-def send_message_to_backup_server(backup_server_socket: socket, message: Message):
+def send_message_to_backup_server(message: Message):
     backup_server_socket.sendall(message.to_json().encode())
 
 
@@ -66,11 +64,11 @@ def broadcast_message(message: Message):
         send_message(client.socket, message)
 
 
-def handle_client(client_socket, address_info):
+def handle_client(active_client: ActiveClient):
     while True:
-        username = client_socket.recv(2048).decode('utf-8')
+        username = active_client.socket.recv(2048).decode('utf-8')
         if username:
-            active_client = ActiveClient(user_name=username, socket=client_socket, address_info=address_info)
+            active_client.user_name = username
             active_clients.append(active_client)
 
             prompt_message = Message(user_name='SERVER', body=f'{username} has been added to the chat')
@@ -93,6 +91,10 @@ def main():
 
     server.listen(LISTENER_LIMIT)
 
+    # backup server socket connection
+
+    backup_server_socket.connect((BACKUP_SERVER_HOST, BACKUP_SERVER_PORT))
+
     while True:
         client_socket, address_info = server.accept()
 
@@ -109,7 +111,9 @@ def main():
 
         print(f"Successfully connected to client {address_info[0]}:{address_info[1]}")
 
-        Thread(target=handle_client, args=(client_socket, address_info)).start()
+        active_client = ActiveClient(user_name='', socket=client_socket, address_info=address_info)
+
+        Thread(target=handle_client, args=(active_client, )).start()
 
 
 main()

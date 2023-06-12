@@ -49,11 +49,17 @@ def receive_from_main_server():
 
     backup_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    backup_socket.bind((BACKUP_SERVER_HOST, BACKUP_SERVER_PORT))
+    try:
+        backup_socket.bind((BACKUP_SERVER_HOST, BACKUP_SERVER_PORT))
+        print(f"Running the server on {BACKUP_SERVER_HOST}:{BACKUP_SERVER_PORT}")
+    except:
+        print(f"Unable to bind to host {BACKUP_SERVER_HOST} and port {BACKUP_SERVER_PORT}")
 
     backup_socket.listen(1)
 
     connection_socket, address_info = backup_socket.accept()
+
+    print(f"Successfully connected to the Main Server @ {address_info[0]}:{address_info[1]}")
 
     while True:
         try:
@@ -94,7 +100,6 @@ def handle_client(client_socket, address_info):
             print("Client username is empty")
 
     Thread(target=receive_messages, args=(active_client, )).start()
-    Thread(target=receive_from_main_server).start()
 
 
 def main():
@@ -107,6 +112,8 @@ def main():
         print(f"Unable to bind to host {BACKUP_SERVER_HOST} and port {SERVER_PORT}")
 
     server.listen(LISTENER_LIMIT)
+
+    Thread(target=receive_from_main_server).start()
 
     while True:
         client_socket, address_info = server.accept()
