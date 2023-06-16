@@ -35,7 +35,7 @@ class SQL:
     # Write data to a table
     def write_player(self, player: Player):
         data = player.player_tuple()
-        self.cursor.execute("INSERT INTO Player (UserName, IpAddress, Progress, Coordinates, CarImage, Position) VALUES (?, ?, ?, ?, ?, ?)", data)
+        self.cursor.execute("INSERT INTO Player (IpAddress, Progress, Coordinates, CarImage, Position) VALUES (?, ?, ?, ?, ?)", data)
         self.conn.commit()
 
     def close_connection(self):

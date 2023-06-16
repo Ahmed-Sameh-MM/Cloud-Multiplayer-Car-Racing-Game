@@ -15,7 +15,7 @@ class Player:
     @classmethod
     def from_json(cls, json_str):
         player = json.loads(json_str)
-        return cls(player['X_Coordinate'], player['Y_Coordinate'], player['Progress'], player['Tarteeb'])
+        return cls(player['x_coordinate'], player['y_coordinate'], player['progress'], player['tarteeb'])
 
     def player_tuple(self) -> tuple:
         return self.x_coordinate, self.y_coordinate, self.progress, self.tarteeb

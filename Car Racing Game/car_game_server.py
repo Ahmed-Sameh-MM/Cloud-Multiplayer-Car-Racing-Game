@@ -1,159 +1,144 @@
-import pygame
-from time import sleep
-import sys
+import socket
+from threading import Thread
+import pickle
+import random
+from typing import List
 
-sys.path.append('../')
-import player
+from player import Player
 
+MAIN_SERVER_HOST = 'localhost'
+MAIN_SERVER_PORT = 50000
 
+# Player Constants
+ID = 1
+START_X: int = 200
+START_Y: int = 395
 
-class Car:
-
-    def __init__(self):
-
-        self.run = False
-        self.time = 1
-
-        # initialize font module 
-        pygame.font.init()
-        self.FONT = pygame.font.SysFont("comicsans", 60)
-
-        # set width,height of game window
-        self.WIDTH, self.HEIGHT = 800, 600
-        self.WIN = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
-
-        # set background and car images
-        self.myRoad = pygame.transform.scale(pygame.image.load("img/back_ground.jpg"), (self.WIDTH, self.HEIGHT))
-       
-        # initialize constants
-        self.BG_SPEED = 3
-        self.CAR_WIDTH = 49
-        self.CAR_HEIGHT = 100
-        self.CAR_VEL = 5
-
-        # draw background image
-        self.drawStreet()
-
-        # initialize clock object
-        self.clock = pygame.time.Clock()
-
-        # set up initial coordinates for road in the game
-        self.myRoad_x1_coordinate = 0
-        self.myRoad_x2_coordinate = 0
-        self.myRoad_y1_coordinate = 0
-        self.myRoad_y2_coordinate = -600
-
-        # set up initial coordinated for end line in the game
-        self.myEndLine_x_coordinate = 150
-        self.myEndLine_y_coordinate = -65
+LISTENER_LIMIT = 3
+active_players: List[Player] = []
+disconnected_players: List[Player] = []
+car_images = ['img/car_1.png', 'img/car_2.png', 'img/car_3.png', 'img/car_4.jpeg', 'img/car_5.jpeg']
 
 
-        # init player.Player
-        self.player = player.Player('AbdulRaouf','localhost',0,{"x": 200, "y": self.HEIGHT-self.CAR_HEIGHT},'img/car.png',1)
-        self.myCar = pygame.image.load(self.player.car_image)
+def send_message(player_socket: socket.socket):
+    global active_players
+    player_socket.sendall(pickle.dumps(active_players))
 
-        # init progress and position
-        self.displayProgress()
-        self.displayRank()
+
+def broadcast_message(player: Player):
+    print("hello from broadcast")
+    for active_player in active_players:
+        if active_player.id != player.id:
+            send_message(active_player.socket)
+    print("Server successfully broadcasted the player movements to other players")
+
+
+def handle_player(player_socket, playerObj):
+    try:
+        global active_players
+        while not player_socket.recv(2048): 
+                active_players[playerObj.id-1].coordinates["x"], active_players[playerObj.id].coordinates["y"] = playerObj.coordinates["x"], playerObj.coordinates["y"]
+                broadcast_message(playerObj)
+        # print("Handling Done")
+    except:
+        print("Player could not handled")
+    return
+
+
+def on_init(player_socket: socket.socket, playerObj):
+    global ID, active_players, START_X, START_Y
+    playerObj.id = ID
+    ID += 1
+    random_num = random.randint(0, len(car_images)-1)
+    playerObj.car_image = car_images[random_num]
+    playerObj.coordinates["x"] = START_X
+    playerObj.coordinates["y"] = START_Y
+    START_X += 30
+    car_images.pop(random_num)
+    active_players.append(playerObj)
+    id = playerObj.id
+    playerObj = pickle.dumps(playerObj)
+    player_socket.sendall(playerObj)
+    print(f"Player {id} has been registered in the server")
+
+
+def check_players(player_socket: socket.socket):
+    print("Active:", active_players)
+    while True:
+        print(f"Client {ID} checks for all players")
+        if len(active_players) == 2:
+            player_socket.sendall(pickle.dumps(active_players))
+            break
+
+
+def receive_player_obj(player_socket):
+    while True:
+        playerObj = pickle.loads(player_socket.recv(2048))
+        if playerObj == "Are all players connected ?":
+                Thread(target=check_players, args=(player_socket,)).start()
+        elif playerObj.id is None:
+            Thread(target=on_init, args=(player_socket, playerObj)).start()
+        else:
+            print("calling handle")
+            Thread(target=handle_player, args=(player_socket, playerObj)).start()
+
+
+def check_players_2(player_socket: socket.socket, player_obj: Player):
+    print("Active:", active_players)
+    player_obj = pickle.loads(player_obj)
+    print(f"Client {player_obj.id} checks for all players")
+    while True:
+        if len(active_players) == 2:
+            player_socket.sendall(pickle.dumps(active_players))
+            break
+
+    print("calling handle")
+    handle_player(player_socket, player_obj)
+
+
+def on_init2(player_socket: socket.socket, playerObj):
+    global ID, active_players, START_X, START_Y
+    playerObj.id = ID
+    ID += 1
+    random_num = random.randint(0, len(car_images)-1)
+    playerObj.car_image = car_images[random_num]
+    playerObj.coordinates["x"] = START_X
+    playerObj.coordinates["y"] = START_Y
+    START_X += 30
+    car_images.pop(random_num)
+    active_players.append(playerObj)
+    id = playerObj.id
+    playerObj = pickle.dumps(playerObj)
+    player_socket.sendall(playerObj)
+    print(f"Player {id} has been registered in the server")
+    check_players_2(player_socket, playerObj)
     
-    def displayProgress(self):
-        FONT = pygame.font.SysFont("comicsans", 24)
-        progress = FONT.render(f"Progress: {self.player.progress}", True, (255,255,255))
-        self.WIN.blit(progress,(30,30))
-        pygame.display.update()
 
-    def displayRank(self):
-        FONT = pygame.font.SysFont("verdana", 24)
-        position = FONT.render(f"Rank: {self.player.position}", True, (255,255,255))
-        self.WIN.blit(position,(30,60))
-        pygame.display.update()
-    
-    def handleMovements(self):
-        keys = pygame.key.get_pressed()
+def receive_player_obj_2(player_socket):
+    playerObj = pickle.loads(player_socket.recv(2048))
+    on_init2(player_socket, playerObj)
 
-        # check for car movements in road
-        if keys[pygame.K_LEFT] and self.player.coordinates["x"] - self.CAR_VEL >= 0:
-            self.player.coordinates["x"] -= self.CAR_VEL
-        if keys[pygame.K_RIGHT] and self.player.coordinates["x"] + self.CAR_VEL + self.CAR_WIDTH <= self.WIDTH:
-            self.player.coordinates["x"] += self.CAR_VEL
-        if keys[pygame.K_UP] and self.player.Player.coordinates["y"] - self.CAR_VEL >= 0:
-            self.player.coordinates["y"] -= self.CAR_VEL
-        if keys[pygame.K_DOWN] and self.player.coordinates["y"] + self.CAR_VEL + self.CAR_HEIGHT <= self.HEIGHT:
-            self.player.coordinates["y"] += self.CAR_VEL
 
-    def startRace(self):
-        run = True
-        # This while loop is required in every pygame instance that keeps the game in the
-        # running state
-        while run:
-            # Just to configure fps
-            self.clock.tick(60)
-            self.displayProgress()
-            if pygame.time.get_ticks() >= 300 * self.time:
-                self.displayProgress()
-                if self.player.progress < 100:
-                    self.player.progress += 1 
-                self.time += 1
-            self.displayRank()
-            # checking for key events
-            for event in pygame.event.get():
-                # if quit button is clicked
-                # break out of this while loop and stop pygame instance
-                if event.type == pygame.QUIT:
-                    run = False
-                    break
-            
-            self.handleMovements()
+def main():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-            # move the street down the window
-            self.move(self.myRoad, self.myRoad_x1_coordinate, self.myRoad_y1_coordinate)
-            self.move(self.myRoad, self.myRoad_x2_coordinate, self.myRoad_y2_coordinate)
+    try:
+        server_socket.bind((MAIN_SERVER_HOST, MAIN_SERVER_PORT))
+        print(f"Running the server_socket on {MAIN_SERVER_HOST}:{MAIN_SERVER_PORT}")
+    except:
+        print(f"Unable to bind to host {MAIN_SERVER_HOST} and port {MAIN_SERVER_PORT}")
 
-            
-            self.myRoad_y1_coordinate += self.BG_SPEED
-            self.myRoad_y2_coordinate += self.BG_SPEED
+    server_socket.listen(LISTENER_LIMIT)
 
-            if self.myRoad_y1_coordinate >= self.HEIGHT:
-                self.myRoad_y1_coordinate = -600
-            if self.myRoad_y2_coordinate >= self.HEIGHT:
-                self.myRoad_y2_coordinate = -600
+    while True:
+        player_socket, address_info = server_socket.accept()
+        print(f"Successfully connected to client {address_info[0]}:{address_info[1]}")
+        # Thread(target=receive_player_obj_2, args=(player_socket,)).start()
 
-            if self.player.progress >= 95:
-                end_img = pygame.image.load('img/end.png')
-                self.myEndLine_y_coordinate += self.BG_SPEED
-                self.move(end_img,self.myEndLine_x_coordinate,self.myEndLine_y_coordinate)
+        if len(active_players) == 2:
+            player_socket.sendall(pickle.dumps(active_players))
+            break
 
-            # move car to new coordinates
-            self.move(self.myCar, self.player.coordinates["x"], self.player.coordinates["y"])
 
-           
-            
-            if self.player.coordinates["y"] < self.myEndLine_y_coordinate - 10:
-                my_font = pygame.font.SysFont("Arial", 36)
-                text_surface = my_font.render("YOU WON!", True, (255, 255, 255))
-                self.WIN.blit(text_surface, (self.WIDTH/2, self.HEIGHT/2))
-                pygame.display.update()
-                sleep(2)
-                run = False
-            # This line of code is required to render changes on the screen 
-            pygame.display.update()
-        
-        # this line will be reached only if run = False
-        pygame.quit()
-
-    def drawStreet(self):
-        self.WIN.blit(self.myRoad, (0, 0))
-        pygame.display.update()
-        
-    
-    def move(self, object, x_coord, y_coord):
-        self.WIN.blit(object, (x_coord, y_coord))
-
-    def isCrash():
-        pass
-
-if __name__ == "__main__":
-    car = Car()
-    car.startRace()
-    
-    
+if __name__ == '__main__':
+    main()

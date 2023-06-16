@@ -4,14 +4,20 @@ from threading import Thread
 from message import Message
 from sql_db import SQL
 from active_client import ActiveClient
+from movement import Movement
+from car_game_client import GameWindow
+from game_signal import GameSignal
 
 from typing import List
 
-MAIN_SERVER_HOST = ''
-MAIN_SERVER_PORT = 20000
+MAIN_SERVER_HOST = 'localhost'
+MAIN_SERVER_CHAT_PORT = 20000
+MAIN_SERVER_GAME_PORT = 20001
+
 
 BACKUP_SERVER_HOST = '20.51.244.35'
-BACKUP_SERVER_PORT = 40000
+BACKUP_SERVER_CHAT_PORT = 40000
+BACKUP_SERVER_GAME_PORT = 40001
 backup_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 LISTENER_LIMIT = 5
@@ -25,7 +31,7 @@ def receive_messages(active_client: ActiveClient):
 
     while True:
         try:
-            message = active_client.socket.recv(2048).decode('utf-8')
+            message = active_client.chat_socket.recv(2048).decode('utf-8')
             if message:
                 final_message = Message(user_name=active_client.user_name, body=message)
                 broadcast_message(final_message)
@@ -33,12 +39,12 @@ def receive_messages(active_client: ActiveClient):
                 # write the received message to the SQL database
                 sql.write_message(final_message)
 
-                send_message_to_backup_server(final_message)
+                # send_message_to_backup_server(final_message)
             else:
                 print(f"The message sent from client {active_client.user_name} is empty")
 
         except ConnectionResetError:
-            active_client.socket.close()
+            active_client.chat_socket.close()
             for client in active_clients:
                 if client.address_info.ip_address == active_client.address_info.ip_address:
 
@@ -61,12 +67,12 @@ def send_message_to_backup_server(message: Message):
 
 def broadcast_message(message: Message):
     for client in active_clients:
-        send_message(client.socket, message)
+        send_message(client.chat_socket, message)
 
 
 def handle_client(active_client: ActiveClient):
     while True:
-        username = active_client.socket.recv(2048).decode('utf-8')
+        username = active_client.chat_socket.recv(2048).decode('utf-8')
         if username:
             active_client.user_name = username
             active_clients.append(active_client)
@@ -80,27 +86,56 @@ def handle_client(active_client: ActiveClient):
     Thread(target=receive_messages, args=(active_client, )).start()
 
 
+def receive_movements(game_socket: socket.socket):
+    while True:
+        movements = Movement.from_json(game_socket.recv(2048).decode('utf-8'))
+
+        print('left', movements.left, 'right', movements.right, 'up', movements.up, 'down', movements.down)
+
+        print('x_coordinate:', movements.x_coordinate, 'y_coordinate:', movements.y_coordinate)
+
+        # some processing
+        player = GameWindow.handle_movements_server(movements=movements)
+
+        game_socket.sendall(player.to_json().encode())
+
+
+def send_start_game_signal(client_game_socket: socket.socket):
+    for client in active_clients:
+        client_game_socket.sendall(GameSignal.START.name.encode())
+
+    return
+
+
 def main():
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    chat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    game_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
-        server.bind((MAIN_SERVER_HOST, MAIN_SERVER_PORT))
-        print(f"Running the server on {MAIN_SERVER_HOST}:{MAIN_SERVER_PORT}")
-    except:
-        print(f"Unable to bind to host {MAIN_SERVER_HOST} and port {MAIN_SERVER_PORT}")
+        chat_socket.bind((MAIN_SERVER_HOST, MAIN_SERVER_CHAT_PORT))
+        print(f"Running the chat socket on {MAIN_SERVER_HOST}:{MAIN_SERVER_CHAT_PORT}")
 
-    server.listen(LISTENER_LIMIT)
+        game_socket.bind((MAIN_SERVER_HOST, MAIN_SERVER_GAME_PORT))
+        print(f"Running the game socket on {MAIN_SERVER_HOST}:{MAIN_SERVER_GAME_PORT}")
+    except:
+        print(f"Unable to bind to host {MAIN_SERVER_HOST} and port {MAIN_SERVER_CHAT_PORT}")
+
+    chat_socket.listen(LISTENER_LIMIT)
+
+    game_socket.listen(LISTENER_LIMIT)
 
     # backup server socket connection
 
-    backup_server_socket.connect((BACKUP_SERVER_HOST, BACKUP_SERVER_PORT))
+    # backup_server_socket.connect((BACKUP_SERVER_HOST, BACKUP_SERVER_CHAT_PORT))
 
     while True:
-        client_socket, address_info = server.accept()
+        client_chat_socket, chat_address_info = chat_socket.accept()
+        client_game_socket, game_address_info = game_socket.accept()
 
         for x in disconnected_clients:
-            if address_info[0] == x.address_info.ip_address:
-                print(f"Successfully Reconnected to client {address_info[0]}:{address_info[1]}")
+            if chat_address_info[0] == x.address_info.ip_address:
+                print(f"Successfully Reconnected to client {chat_address_info[0]}:{chat_address_info[1]}")
 
                 # player_data = sql.get_player(ip_address=ip_address)
 
@@ -109,11 +144,16 @@ def main():
                 # client_socket.sendall(all_messages.to_json().encode())
                 # client_socket.sendall(player_data)
 
-        print(f"Successfully connected to client {address_info[0]}:{address_info[1]}")
+        print(f"Successfully connected to client {chat_address_info[0]}:{chat_address_info[1]}")
 
-        active_client = ActiveClient(user_name='', socket=client_socket, address_info=address_info)
+        active_client = ActiveClient(user_name='', chat_socket=client_chat_socket, game_socket=client_game_socket, address_info=chat_address_info)
+
+        if len(active_clients) == 1:
+            Thread(target=send_start_game_signal, args=(client_game_socket, )).start()
 
         Thread(target=handle_client, args=(active_client, )).start()
+
+        Thread(target=receive_movements, args=(client_game_socket, )).start()
 
 
 main()
