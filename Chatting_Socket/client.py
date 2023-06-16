@@ -80,6 +80,8 @@ def send_message():
 
 
 def read_game_signal(game_window: GameWindow):
+    global game_listening_thread
+
     game_signal = game_socket.recv(2048).decode('utf-8')
 
     print('game signal:', game_signal)

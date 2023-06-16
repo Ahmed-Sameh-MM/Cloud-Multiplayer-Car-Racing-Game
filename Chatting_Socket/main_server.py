@@ -100,11 +100,12 @@ def receive_movements(game_socket: socket.socket):
         game_socket.sendall(player.to_json().encode())
 
 
-def send_start_game_signal(client_game_socket: socket.socket):
-    for client in active_clients:
-        client_game_socket.sendall(GameSignal.START.name.encode())
-
-    return
+def send_start_game_signal():
+    while True:
+        if len(active_clients) == 2:
+            for active_client in active_clients:
+                active_client.game_socket.sendall(GameSignal.START.name.encode())
+            break
 
 
 def main():
@@ -129,6 +130,9 @@ def main():
 
     # backup_server_socket.connect((BACKUP_SERVER_HOST, BACKUP_SERVER_CHAT_PORT))
 
+    # checks if at least 2 players have joined the game
+    Thread(target=send_start_game_signal).start()
+
     while True:
         client_chat_socket, chat_address_info = chat_socket.accept()
         client_game_socket, game_address_info = game_socket.accept()
@@ -147,9 +151,6 @@ def main():
         print(f"Successfully connected to client {chat_address_info[0]}:{chat_address_info[1]}")
 
         active_client = ActiveClient(user_name='', chat_socket=client_chat_socket, game_socket=client_game_socket, address_info=chat_address_info)
-
-        if len(active_clients) == 1:
-            Thread(target=send_start_game_signal, args=(client_game_socket, )).start()
 
         Thread(target=handle_client, args=(active_client, )).start()
 
