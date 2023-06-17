@@ -34,6 +34,8 @@ car_data = [
     ClientInitializer(car_image='img/car_3.png', start_x=400)
 ]
 
+car_positions = {}
+
 
 def receive_messages(active_client: ActiveClient):
 
@@ -125,8 +127,26 @@ def receive_movements(game_socket: socket.socket, ip_address: str):
         if car_data[0].IpAddress == ip_address:
             print('Player 1')
 
+            car_positions[ip_address]['x_coordinate'] = player.x_coordinate
+            car_positions[ip_address]['y_coordinate'] = player.y_coordinate
+
+            if car_positions[ip_address]['y_coordinate'] < car_positions[car_data[1].IpAddress]['y_coordinate']:
+                player.tarteeb = 1
+
+            else:
+                player.tarteeb = 2
+
         elif car_data[1].IpAddress == ip_address:
             print('Player 2')
+
+            car_positions[ip_address]['x_coordinate'] = player.x_coordinate
+            car_positions[ip_address]['y_coordinate'] = player.y_coordinate
+
+            if car_positions[ip_address]['y_coordinate'] < car_positions[car_data[0].IpAddress]['y_coordinate']:
+                player.tarteeb = 1
+
+            else:
+                player.tarteeb = 2
 
         print('BEFORE:: ', 'x:', movements.x_coordinate, 'y:', movements.y_coordinate)
 
@@ -152,6 +172,11 @@ def send_start_game_signal():
 
             sql.write_player(player_1)
             sql.write_player(player_2)
+
+            car_positions.clear()
+
+            car_positions[player_1.IpAddress] = {'x_coordinate': player_1.x_coordinate, 'y_coordinate': player_1.y_coordinate}
+            car_positions[player_2.IpAddress] = {'x_coordinate': player_2.x_coordinate, 'y_coordinate': player_2.y_coordinate}
 
             for index, active_client in enumerate(active_clients):
                 initializationData = InitializationData(car_data_list=car_data, index=index)

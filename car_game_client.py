@@ -134,11 +134,19 @@ class GameWindow:
             time.sleep(0.1)
 
     def update_player_data(self, player: Player):
+        player_rank = player.tarteeb
+
+        other_player_rank = 2 if player_rank == 1 else 1
+
         if player.IpAddress == self.player.IpAddress:
             self.player = player
 
+            self.otherPlayer.tarteeb = other_player_rank
+
         elif player.IpAddress == self.otherPlayer.IpAddress:
             self.otherPlayer = player
+
+            self.player.tarteeb = other_player_rank
 
     def display_progress(self):
         FONT = pygame.font.SysFont("comicsans", 24)
