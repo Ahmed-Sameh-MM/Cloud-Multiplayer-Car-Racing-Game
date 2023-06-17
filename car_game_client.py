@@ -14,7 +14,7 @@ pygame_car_images = []
 
 CAR_WIDTH = 49
 CAR_HEIGHT = 100
-CAR_VELOCITY = 5
+CAR_VELOCITY = 50
 
 WIDTH = 800
 HEIGHT = 600
@@ -109,7 +109,7 @@ class GameWindow:
 
 
     def handle_movements(self, game_socket: socket.socket):
-        send_delay = 0.1  # Adjust this value to control the delay between movement updates
+        send_delay = 1  # Adjust this value to control the delay between movement updates
         last_sent_time = time.time()
 
         while True:
@@ -140,7 +140,7 @@ class GameWindow:
                 last_sent_time = time.time()  # Update the last sent time
 
             # Add a small delay to control the frequency of movement updates
-            time.sleep(0.05)
+            time.sleep(0.1)
 
     def update_player_data(self, player: Player):
         if player.IpAddress == self.player.IpAddress:
