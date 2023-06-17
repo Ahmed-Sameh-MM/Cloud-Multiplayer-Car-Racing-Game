@@ -10,20 +10,12 @@ from initialization_data import InitializationData
 connected_players = []
 pygame_car_images = []
 
-CAR_WIDTH = 49
-CAR_HEIGHT = 100
-CAR_VELOCITY = 50
-
-WIDTH = 800
-HEIGHT = 600
-
 
 class GameWindow:
 
     def __init__(self):
 
         self.run = False
-        self.time = 1
 
         # initialize constants
         self.BG_SPEED = 3
@@ -106,7 +98,7 @@ class GameWindow:
             previous_y_coordinate = self.player.y_coordinate
 
             movement = Movement(left=False, right=False, up=False, down=False, x_coordinate=previous_x_coordinate,
-                                y_coordinate=previous_y_coordinate)
+                                y_coordinate=previous_y_coordinate, progress=self.player.progress)
 
             # check for car movements in road
             if keys[pygame.K_LEFT]:
@@ -158,38 +150,12 @@ class GameWindow:
         position = FONT.render(f"Rank: {self.player.tarteeb}", True, (255, 255, 255))
         self.WIN.blit(position, (30, 60))
 
-    @staticmethod
-    def handle_movements_server(movements: Movement, ip_address: str):
-
-        player = Player(x_coordinate=movements.x_coordinate, y_coordinate=movements.y_coordinate, progress=0, tarteeb=0,
-                        ip_address=ip_address)
-
-        # check for car movements in road
-        if movements.left and movements.x_coordinate - CAR_VELOCITY >= 0:
-            player.x_coordinate -= CAR_VELOCITY
-
-        if movements.right and movements.x_coordinate + CAR_VELOCITY + CAR_WIDTH <= WIDTH:
-            player.x_coordinate += CAR_VELOCITY
-
-        if movements.up and movements.y_coordinate - CAR_VELOCITY >= 0:
-            player.y_coordinate -= CAR_VELOCITY
-
-        if movements.down and movements.y_coordinate + CAR_VELOCITY + CAR_HEIGHT <= HEIGHT:
-            player.y_coordinate += CAR_VELOCITY
-
-        return player
-
     def start_race(self):
         run = True
 
         while run:
             # Just to configure fps
             self.clock.tick(60)
-
-            if pygame.time.get_ticks() >= 300 * self.time:
-                if self.player.progress < 100:
-                    self.player.progress += 1
-                self.time += 1
 
             # checking for key events
             for event in pygame.event.get():
@@ -213,8 +179,8 @@ class GameWindow:
             if self.myRoad_y2_coordinate >= self.HEIGHT:
                 self.myRoad_y2_coordinate = -600
 
-            if self.player.progress >= 95:
-                end_img = pygame.image.load('../Car Racing Game/img/end.png')
+            if self.player.progress >= 80:
+                end_img = pygame.image.load('img/end.png')
                 self.myEndLine_y_coordinate += self.BG_SPEED
                 self.move(end_img, self.myEndLine_x_coordinate, self.myEndLine_y_coordinate)
 

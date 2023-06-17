@@ -6,10 +6,10 @@ from message import Message
 from sql_db import SQL
 from active_client import ActiveClient
 from movement import Movement
-from car_game_client import GameWindow
 from client_initializer import ClientInitializer
 from player import Player
 from initialization_data import InitializationData
+from car_game_server import handle_movements_server
 
 from typing import List
 
@@ -120,7 +120,7 @@ def receive_movements(game_socket: socket.socket, ip_address: str):
 
 
         # some processing
-        player = GameWindow.handle_movements_server(movements=movements, ip_address=ip_address)
+        player = handle_movements_server(movements=movements, ip_address=ip_address)
 
         sql.update_player(player)
 
