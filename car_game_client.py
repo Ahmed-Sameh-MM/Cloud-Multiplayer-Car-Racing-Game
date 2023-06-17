@@ -10,6 +10,8 @@ from initialization_data import InitializationData
 connected_players = []
 pygame_car_images = []
 
+END_MESSAGE = ''
+
 
 class GameWindow:
 
@@ -44,7 +46,7 @@ class GameWindow:
 
         # set up initial coordinated for end line in the game
         self.myEndLine_x_coordinate = 150
-        self.myEndLine_y_coordinate = -65
+        self.myEndLine_y_coordinate = 50
 
         # init Player
         self.myCar = None
@@ -59,6 +61,8 @@ class GameWindow:
         self.display_rank()
 
         self.draw_street()
+
+        pygame.display.set_caption("🌫️CLOUD‍️‍🌫️ car racing game")
 
         pygame.display.update()
 
@@ -126,6 +130,8 @@ class GameWindow:
             time.sleep(0.1)
 
     def update_player_data(self, player: Player):
+        global END_MESSAGE
+
         player_rank = player.tarteeb
 
         other_player_rank = 2 if player_rank == 1 else 1
@@ -139,6 +145,12 @@ class GameWindow:
             self.otherPlayer = player
 
             self.player.tarteeb = other_player_rank
+
+        if self.player.progress == 100:
+            END_MESSAGE = 'U WON !'
+
+        elif self.otherPlayer.progress == 100:
+            END_MESSAGE = 'U LOST :('
 
     def display_progress(self):
         FONT = pygame.font.SysFont("comicsans", 24)
@@ -179,9 +191,8 @@ class GameWindow:
             if self.myRoad_y2_coordinate >= self.HEIGHT:
                 self.myRoad_y2_coordinate = -600
 
-            if self.player.progress >= 80:
+            if self.player.progress >= 70:
                 end_img = pygame.image.load('img/end.png')
-                self.myEndLine_y_coordinate += self.BG_SPEED
                 self.move(end_img, self.myEndLine_x_coordinate, self.myEndLine_y_coordinate)
 
             # move car to new coordinates
@@ -190,11 +201,14 @@ class GameWindow:
             # move car to new coordinates
             self.move_other_car()
 
-            if self.player.y_coordinate < self.myEndLine_y_coordinate - 10:
-                my_font = pygame.font.SysFont("Arial", 36)
-                text_surface = my_font.render("YOU WON!", True, (255, 255, 255))
-                self.WIN.blit(text_surface, (self.WIDTH / 2, self.HEIGHT / 2))
-                sleep(2)
+            if self.player.progress == 100:
+                my_font = pygame.font.SysFont("Arial", 100)
+                text_surface = my_font.render(END_MESSAGE, True, (255, 0, 0))
+                self.WIN.blit(text_surface, (200, self.HEIGHT / 2))
+
+                pygame.display.update()
+
+                sleep(5)
                 run = False
 
             # self.render_players()
