@@ -1,27 +1,41 @@
 import socket
 from threading import Thread
+import pickle
 
 from message import Message
 from sql_db import SQL
 from active_client import ActiveClient
+from movement import Movement
+from client_initializer import ClientInitializer
+from player import Player
+from initialization_data import InitializationData
+from car_game_server import handle_movements_server
 
 from typing import List
 
 BACKUP_SERVER_HOST = ''
 BACKUP_SERVER_PORT = 40000
-SERVER_PORT = 20000
+BACKUP_SERVER_CHAT_PORT = 20000
+BACKUP_SERVER_GAME_PORT = 20001
 LISTENER_LIMIT = 5
 
 active_clients: List[ActiveClient] = []
 disconnected_clients: List[ActiveClient] = []
 sql = SQL()
 
+car_data = [
+    ClientInitializer(car_image='img/car_2.png', start_x=200),
+    ClientInitializer(car_image='img/car_3.png', start_x=400)
+]
+
+car_positions = {}
+
 
 def receive_messages(active_client: ActiveClient):
 
     while True:
         try:
-            message = active_client.socket.recv(2048).decode('utf-8')
+            message = active_client.chat_socket.recv(2048).decode('utf-8')
             if message:
                 final_message = Message(user_name=active_client.user_name, body=message)
                 broadcast_message(final_message)
@@ -32,7 +46,7 @@ def receive_messages(active_client: ActiveClient):
                 print(f"The message sent from client {active_client.user_name} is empty")
 
         except ConnectionResetError:
-            active_client.socket.close()
+            active_client.chat_socket.close()
             for client in active_clients:
                 if client.address_info.ip_address == active_client.address_info.ip_address:
 
@@ -83,14 +97,23 @@ def send_message(client_socket, message: Message):
 
 def broadcast_message(message: Message):
     for client in active_clients:
-        send_message(client.socket, message)
+        send_message(client.chat_socket, message)
 
 
-def handle_client(client_socket, address_info):
+def send_movement(client_socket, player: Player):
+    client_socket.sendall(player.to_pickle())
+
+
+def broadcast_movement(player: Player):
+    for active_client in active_clients:
+        send_movement(active_client.game_socket, player)
+
+
+def handle_client(active_client: ActiveClient):
     while True:
-        username = client_socket.recv(2048).decode('utf-8')
+        username = active_client.chat_socket.recv(2048).decode('utf-8')
         if username:
-            active_client = ActiveClient(user_name=username, socket=client_socket, address_info=address_info)
+            active_client.user_name = username
             active_clients.append(active_client)
 
             prompt_message = Message(user_name='SERVER', body=f'{username} has been added to the chat')
@@ -102,25 +125,115 @@ def handle_client(client_socket, address_info):
     Thread(target=receive_messages, args=(active_client, )).start()
 
 
+def receive_movements(game_socket: socket.socket, ip_address: str):
+    while True:
+        movements = Movement.from_pickle(game_socket.recv(2048))
+
+        if movements.left:
+            print("LEFT")
+        if movements.right:
+            print("RIGHT")
+        if movements.up:
+            print("UP")
+        if movements.down:
+            print("DOWN")
+
+
+        # some processing
+        player = handle_movements_server(movements=movements, ip_address=ip_address)
+
+        sql.update_player(player)
+
+        if car_data[0].IpAddress == ip_address:
+            print('Player 1')
+
+            car_positions[ip_address]['x_coordinate'] = player.x_coordinate
+            car_positions[ip_address]['y_coordinate'] = player.y_coordinate
+
+            if car_positions[ip_address]['y_coordinate'] < car_positions[car_data[1].IpAddress]['y_coordinate']:
+                player.tarteeb = 1
+
+            else:
+                player.tarteeb = 2
+
+        elif car_data[1].IpAddress == ip_address:
+            print('Player 2')
+
+            car_positions[ip_address]['x_coordinate'] = player.x_coordinate
+            car_positions[ip_address]['y_coordinate'] = player.y_coordinate
+
+            if car_positions[ip_address]['y_coordinate'] < car_positions[car_data[0].IpAddress]['y_coordinate']:
+                player.tarteeb = 1
+
+            else:
+                player.tarteeb = 2
+
+        print('BEFORE:: ', 'x:', movements.x_coordinate, 'y:', movements.y_coordinate)
+
+        print('AFTER:: ', 'x:', player.x_coordinate, 'y:', player.y_coordinate)
+
+        print('\n\n')
+
+        # send the returned movements to all the players
+        broadcast_movement(player=player)
+
+
+def send_start_game_signal():
+    while True:
+        if len(active_clients) == 2:
+
+            car_data[0].IpAddress = active_clients[0].address_info.ip_address
+            car_data[1].IpAddress = active_clients[1].address_info.ip_address
+
+            player_1 = Player(ip_address=car_data[0].IpAddress, x_coordinate=car_data[0].start_x, y_coordinate=car_data[0].start_y, progress=0, tarteeb=0)
+            player_2 = Player(ip_address=car_data[1].IpAddress, x_coordinate=car_data[1].start_x, y_coordinate=car_data[1].start_y, progress=0, tarteeb=0)
+
+            sql.delete_all_players()
+
+            sql.write_player(player_1)
+            sql.write_player(player_2)
+
+            car_positions.clear()
+
+            car_positions[player_1.IpAddress] = {'x_coordinate': player_1.x_coordinate, 'y_coordinate': player_1.y_coordinate}
+            car_positions[player_2.IpAddress] = {'x_coordinate': player_2.x_coordinate, 'y_coordinate': player_2.y_coordinate}
+
+            for index, active_client in enumerate(active_clients):
+                initializationData = InitializationData(car_data_list=car_data, index=index)
+                active_client.game_socket.sendall(pickle.dumps(initializationData))
+            break
+
+
 def main():
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    chat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    game_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
-        server.bind((BACKUP_SERVER_HOST, SERVER_PORT))
-        print(f"Running the server on {BACKUP_SERVER_HOST}:{SERVER_PORT}")
-    except:
-        print(f"Unable to bind to host {BACKUP_SERVER_HOST} and port {SERVER_PORT}")
+        chat_socket.bind((BACKUP_SERVER_HOST, BACKUP_SERVER_CHAT_PORT))
+        print(f"Running the chat socket on {BACKUP_SERVER_HOST}:{BACKUP_SERVER_CHAT_PORT}")
 
-    server.listen(LISTENER_LIMIT)
+        game_socket.bind((BACKUP_SERVER_HOST, BACKUP_SERVER_GAME_PORT))
+        print(f"Running the game socket on {BACKUP_SERVER_HOST}:{BACKUP_SERVER_GAME_PORT}")
+    except:
+        print(f"Unable to bind to host {BACKUP_SERVER_HOST} and port {BACKUP_SERVER_CHAT_PORT}")
+
+    chat_socket.listen(LISTENER_LIMIT)
+
+    game_socket.listen(LISTENER_LIMIT)
 
     Thread(target=receive_from_main_server).start()
 
+    # checks if at least 2 players have joined the game
+    Thread(target=send_start_game_signal).start()
+
     while True:
-        client_socket, address_info = server.accept()
+        client_chat_socket, chat_address_info = chat_socket.accept()
+        client_game_socket, game_address_info = game_socket.accept()
 
         for x in disconnected_clients:
-            if address_info[0] == x.address_info.ip_address:
-                print(f"Successfully Reconnected to client {address_info[0]}:{address_info[1]}")
+            if chat_address_info[0] == x.address_info.ip_address:
+                print(f"Successfully Reconnected to client {chat_address_info[0]}:{chat_address_info[1]}")
 
                 # player_data = sql.get_player(ip_address=ip_address)
 
@@ -129,9 +242,13 @@ def main():
                 # client_socket.sendall(all_messages.to_json().encode())
                 # client_socket.sendall(player_data)
 
-        print(f"Successfully connected to client {address_info[0]}:{address_info[1]}")
+        print(f"Successfully connected to client {chat_address_info[0]}:{chat_address_info[1]}")
 
-        Thread(target=handle_client, args=(client_socket, address_info)).start()
+        active_client = ActiveClient(user_name='', chat_socket=client_chat_socket, game_socket=client_game_socket, address_info=game_address_info)
+
+        Thread(target=handle_client, args=(active_client, )).start()
+
+        Thread(target=receive_movements, args=(client_game_socket, active_client.address_info.ip_address)).start()
 
 
 main()
