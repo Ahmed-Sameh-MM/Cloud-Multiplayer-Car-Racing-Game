@@ -21,3 +21,6 @@ class Player:
 
     def player_tuple(self) -> tuple:
         return self.IpAddress, self.x_coordinate, self.y_coordinate, self.progress
+
+    def player_update_tuple(self) -> tuple:
+        return self.x_coordinate, self.y_coordinate, self.progress, self.IpAddress

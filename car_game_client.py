@@ -121,6 +121,9 @@ class GameWindow:
             if keys[pygame.K_DOWN]:
                 movement.down = True
 
+            if not (movement.left or movement.right or movement.up or movement.down):
+                continue
+
             # Check if enough time has passed since the last movement update
             if time.time() - last_sent_time >= send_delay:
                 # send the movement list

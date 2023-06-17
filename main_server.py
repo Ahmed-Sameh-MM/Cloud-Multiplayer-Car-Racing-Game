@@ -120,6 +120,8 @@ def receive_movements(game_socket: socket.socket, ip_address: str):
         # some processing
         player = GameWindow.handle_movements_server(movements=movements, ip_address=ip_address)
 
+        sql.update_player(player)
+
         if car_data[0].IpAddress == ip_address:
             print('Player 1')
 
@@ -139,8 +141,17 @@ def receive_movements(game_socket: socket.socket, ip_address: str):
 def send_start_game_signal():
     while True:
         if len(active_clients) == 2:
+
             car_data[0].IpAddress = active_clients[0].address_info.ip_address
             car_data[1].IpAddress = active_clients[1].address_info.ip_address
+
+            player_1 = Player(ip_address=car_data[0].IpAddress, x_coordinate=car_data[0].start_x, y_coordinate=car_data[0].start_y, progress=0, tarteeb=0)
+            player_2 = Player(ip_address=car_data[1].IpAddress, x_coordinate=car_data[1].start_x, y_coordinate=car_data[1].start_y, progress=0, tarteeb=0)
+
+            sql.delete_all_players()
+
+            sql.write_player(player_1)
+            sql.write_player(player_2)
 
             for index, active_client in enumerate(active_clients):
                 initializationData = InitializationData(car_data_list=car_data, index=index)

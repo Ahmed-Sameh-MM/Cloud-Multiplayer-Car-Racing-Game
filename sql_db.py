@@ -38,6 +38,15 @@ class SQL:
         self.cursor.execute("INSERT INTO Player (IpAddress, X_Coordinate, Y_Coordinate, Progress) VALUES (?, ?, ?, ?)", data)
         self.conn.commit()
 
+    def update_player(self, player: Player):
+        data = player.player_update_tuple()
+        self.cursor.execute("UPDATE Player SET X_Coordinate=?, Y_Coordinate=?, Progress=? WHERE IpAddress=?;", data)
+        self.conn.commit()
+
+    def delete_all_players(self):
+        self.cursor.execute("DELETE FROM Player")
+        self.conn.commit()
+
     def close_connection(self):
         # Close the connection
         self.conn.close()
