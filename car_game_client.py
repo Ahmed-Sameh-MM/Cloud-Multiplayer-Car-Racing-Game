@@ -55,16 +55,20 @@ class GameWindow:
         self.myEndLine_y_coordinate = -65
 
         # init Player
-        self.myCar = pygame.image.load('img/car_1.png')
+        self.myCar = None
         self.player = Player(x_coordinate=0, y_coordinate=0, progress=0, tarteeb=0)
 
         # init the other Player
-        self.otherCar = pygame.image.load('img/car_1.png')
+        self.otherCar = None
         self.otherPlayer = Player(x_coordinate=0, y_coordinate=0, progress=0, tarteeb=0)
 
         # init progress and position
-        self.displayProgress()
-        self.displayRank()
+        self.display_progress()
+        self.display_rank()
+
+        self.draw_street()
+
+        pygame.display.update()
 
     def client_initiliazation(self, initialization_data: InitializationData):
         currentPlayerIndex = initialization_data.index
