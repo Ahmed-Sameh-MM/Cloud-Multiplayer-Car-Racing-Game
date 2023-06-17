@@ -7,7 +7,7 @@ import time
 
 from player import Player
 from movement import Movement
-from client_initializer import ClientInitializer
+from initialization_data import InitializationData
 
 connected_players = []
 pygame_car_images = []
@@ -72,20 +72,40 @@ class GameWindow:
 
         # init Player
         self.myCar = pygame.image.load('img/car_1.png')
-
         self.player = Player(x_coordinate=0, y_coordinate=0, progress=0, tarteeb=0)
+
+        # init the other Player
+        self.otherCar = pygame.image.load('img/car_1.png')
+        self.otherPlayer = Player(x_coordinate=0, y_coordinate=0, progress=0, tarteeb=0)
 
         # init progress and position
         self.displayProgress()
         self.displayRank()
 
-    def client_initiliazation(self, car_data: ClientInitializer):
-        self.player.x_coordinate = car_data.start_x
-        self.player.y_coordinate = car_data.start_y
+    def client_initiliazation(self, initialization_data: InitializationData):
+        currentPlayerIndex = initialization_data.index
+        self.player.x_coordinate = initialization_data.car_data_list[currentPlayerIndex].start_x
+        self.player.y_coordinate = initialization_data.car_data_list[currentPlayerIndex].start_y
+        self.player.IpAddress = initialization_data.car_data_list[currentPlayerIndex].IpAddress
 
-        self.myCar = pygame.image.load(car_data.carImage)
+        self.myCar = pygame.image.load(initialization_data.car_data_list[currentPlayerIndex].carImage)
 
-        self.move_car(self.player)
+        otherPlayerIndex = None
+
+        if currentPlayerIndex == 0:
+            otherPlayerIndex = 1
+        elif currentPlayerIndex == 1:
+            otherPlayerIndex = 0
+
+        self.otherPlayer.x_coordinate = initialization_data.car_data_list[otherPlayerIndex].start_x
+        self.otherPlayer.y_coordinate = initialization_data.car_data_list[otherPlayerIndex].start_y
+        self.otherPlayer.IpAddress = initialization_data.car_data_list[otherPlayerIndex].IpAddress
+
+        self.otherCar = pygame.image.load(initialization_data.car_data_list[otherPlayerIndex].carImage)
+
+        self.move_my_car()
+
+        self.move_other_car()
 
 
     def handle_movements(self, game_socket: socket.socket):
@@ -116,14 +136,18 @@ class GameWindow:
             # Check if enough time has passed since the last movement update
             if time.time() - last_sent_time >= send_delay:
                 # send the movement list
-                game_socket.sendall(movement.to_json().encode())
+                game_socket.sendall(movement.to_pickle())
                 last_sent_time = time.time()  # Update the last sent time
 
             # Add a small delay to control the frequency of movement updates
             time.sleep(0.05)
 
     def update_player_data(self, player: Player):
-        self.player = player
+        if player.IpAddress == self.player.IpAddress:
+            self.player = player
+
+        elif player.IpAddress == self.otherPlayer.IpAddress:
+            self.otherPlayer = player
 
     def displayProgress(self):
         FONT = pygame.font.SysFont("comicsans", 24)
@@ -138,9 +162,9 @@ class GameWindow:
         pygame.display.update()
 
     @staticmethod
-    def handle_movements_server(movements: Movement):
+    def handle_movements_server(movements: Movement, ip_address: str):
 
-        player = Player(x_coordinate=movements.x_coordinate, y_coordinate=movements.y_coordinate, progress=0, tarteeb=0)
+        player = Player(x_coordinate=movements.x_coordinate, y_coordinate=movements.y_coordinate, progress=0, tarteeb=0, ip_address=ip_address)
 
         # check for car movements in road
         if movements.left and movements.x_coordinate - CAR_VELOCITY >= 0:
@@ -280,7 +304,10 @@ class GameWindow:
                 self.move(end_img, self.myEndLine_x_coordinate, self.myEndLine_y_coordinate)
 
             # move car to new coordinates
-            self.move_car(self.player)
+            self.move_my_car()
+
+            # move car to new coordinates
+            self.move_other_car()
 
             if self.player.y_coordinate < self.myEndLine_y_coordinate - 10:
                 my_font = pygame.font.SysFont("Arial", 36)
@@ -312,8 +339,12 @@ class GameWindow:
         self.WIN.blit(self.myRoad, (0, 0))
         pygame.display.update()
 
-    def move_car(self, player: Player):
-        self.WIN.blit(self.myCar, (player.x_coordinate, player.y_coordinate))
+    def move_my_car(self):
+        self.WIN.blit(self.myCar, (self.player.x_coordinate, self.player.y_coordinate))
+        pygame.display.update()
+
+    def move_other_car(self):
+        self.WIN.blit(self.otherCar, (self.otherPlayer.x_coordinate, self.otherPlayer.y_coordinate))
         pygame.display.update()
 
     def move(self, object, x_coord, y_coord):

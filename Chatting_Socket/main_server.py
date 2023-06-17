@@ -8,10 +8,12 @@ from active_client import ActiveClient
 from movement import Movement
 from car_game_client import GameWindow
 from client_initializer import ClientInitializer
+from player import Player
+from initialization_data import InitializationData
 
 from typing import List
 
-MAIN_SERVER_HOST = 'localhost'
+MAIN_SERVER_HOST = ''
 MAIN_SERVER_CHAT_PORT = 20000
 MAIN_SERVER_GAME_PORT = 20001
 
@@ -77,12 +79,12 @@ def broadcast_message(message: Message):
 
 
 def send_movement(client_socket, player: Player):
-    client_socket.sendall(player.to_json().encode())
+    client_socket.sendall(player.to_pickle())
 
 
 def broadcast_movement(player: Player):
-    for client in active_clients:
-        send_message(client.game_socket, player)
+    for active_client in active_clients:
+        send_movement(active_client.game_socket, player)
 
 
 def handle_client(active_client: ActiveClient):
@@ -101,26 +103,48 @@ def handle_client(active_client: ActiveClient):
     Thread(target=receive_messages, args=(active_client, )).start()
 
 
-def receive_movements(game_socket: socket.socket):
+def receive_movements(game_socket: socket.socket, ip_address: str):
     while True:
-        movements = Movement.from_json(game_socket.recv(2048).decode('utf-8'))
+        movements = Movement.from_pickle(game_socket.recv(2048))
 
-        print('left', movements.left, 'right', movements.right, 'up', movements.up, 'down', movements.down)
+        if movements.left:
+            print("LEFT")
+        if movements.right:
+            print("RIGHT")
+        if movements.up:
+            print("UP")
+        if movements.down:
+            print("DOWN")
 
-        print('x_coordinate:', movements.x_coordinate, 'y_coordinate:', movements.y_coordinate)
 
         # some processing
-        player = GameWindow.handle_movements_server(movements=movements)
+        player = GameWindow.handle_movements_server(movements=movements, ip_address=ip_address)
 
-        game_socket.sendall(player.to_json().encode())
+        if car_data[0].IpAddress == ip_address:
+            print('Player 1')
+
+        elif car_data[1].IpAddress == ip_address:
+            print('Player 2')
+
+        print('BEFORE:: ', 'x:', movements.x_coordinate, 'y:', movements.y_coordinate)
+
+        print('AFTER:: ', 'x:', player.x_coordinate, 'y:', player.y_coordinate)
+
+        print('\n\n')
+
+        # send the returned movements to all the players
+        broadcast_movement(player=player)
 
 
 def send_start_game_signal():
     while True:
         if len(active_clients) == 2:
+            car_data[0].IpAddress = active_clients[0].address_info.ip_address
+            car_data[1].IpAddress = active_clients[1].address_info.ip_address
+
             for index, active_client in enumerate(active_clients):
-                carData = car_data[index]
-                active_client.game_socket.sendall(pickle.dumps(carData))
+                initializationData = InitializationData(car_data_list=car_data, index=index)
+                active_client.game_socket.sendall(pickle.dumps(initializationData))
             break
 
 
@@ -166,11 +190,11 @@ def main():
 
         print(f"Successfully connected to client {chat_address_info[0]}:{chat_address_info[1]}")
 
-        active_client = ActiveClient(user_name='', chat_socket=client_chat_socket, game_socket=client_game_socket, address_info=chat_address_info)
+        active_client = ActiveClient(user_name='', chat_socket=client_chat_socket, game_socket=client_game_socket, address_info=game_address_info)
 
         Thread(target=handle_client, args=(active_client, )).start()
 
-        Thread(target=receive_movements, args=(client_game_socket, )).start()
+        Thread(target=receive_movements, args=(client_game_socket, active_client.address_info.ip_address)).start()
 
 
 main()

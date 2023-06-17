@@ -13,7 +13,7 @@ from car_game_client import GameWindow
 from game_signal import GameSignal
 
 
-MAIN_HOST = 'localhost'
+MAIN_HOST = '40.76.226.192'
 BACKUP_HOST = '20.51.244.35'
 CHAT_PORT = 20000
 GAME_PORT = 20001
@@ -49,9 +49,9 @@ def listen_for_messages_from_server(client):
 
 def listen_for_movements_from_server(game_socket: socket.socket, game_window: GameWindow):
     while True:
-        player_data = game_socket.recv(2048).decode('utf-8')
+        player_data = game_socket.recv(2048)
         if player_data != '':
-            final_player_data = Player.from_json(player_data)
+            final_player_data = Player.from_pickle(player_data)
 
             print('x_coordinate', final_player_data.x_coordinate, 'y_coordinate', final_player_data.y_coordinate)
 
@@ -83,11 +83,11 @@ def send_message():
 def read_game_signal(game_window: GameWindow):
     global game_listening_thread
 
-    car_data = pickle.loads(game_socket.recv(2048))
+    initializationData = pickle.loads(game_socket.recv(2048))
 
-    game_signal = car_data.gameSignal
+    game_signal = initializationData.car_data_list[initializationData.index].gameSignal
 
-    game_window.client_initiliazation(car_data=car_data)
+    game_window.client_initiliazation(initialization_data=initializationData)
 
     if game_signal == GameSignal.START.name:
         game_movements_thread = Thread(target=game_window.handle_movements, args=(game_socket,))

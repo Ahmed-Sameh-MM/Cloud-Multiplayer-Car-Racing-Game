@@ -1,4 +1,4 @@
-import json
+import pickle
 
 
 class Movement:
@@ -12,10 +12,10 @@ class Movement:
         self.x_coordinate = x_coordinate
         self.y_coordinate = y_coordinate
 
-    def to_json(self):
-        return json.dumps(self.__dict__)
+    def to_pickle(self):
+        return pickle.dumps(self.__dict__)
 
     @classmethod
-    def from_json(cls, json_str):
-        movement = json.loads(json_str)
+    def from_pickle(cls, pickle_str):
+        movement = pickle.loads(pickle_str)
         return cls(movement['left'], movement['right'], movement['up'], movement['down'], movement['x_coordinate'], movement['y_coordinate'])
