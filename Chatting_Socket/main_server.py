@@ -76,6 +76,15 @@ def broadcast_message(message: Message):
         send_message(client.chat_socket, message)
 
 
+def send_movement(client_socket, player: Player):
+    client_socket.sendall(player.to_json().encode())
+
+
+def broadcast_movement(player: Player):
+    for client in active_clients:
+        send_message(client.game_socket, player)
+
+
 def handle_client(active_client: ActiveClient):
     while True:
         username = active_client.chat_socket.recv(2048).decode('utf-8')
