@@ -7,6 +7,7 @@ import time
 
 from player import Player
 from movement import Movement
+from client_initializer import ClientInitializer
 
 connected_players = []
 pygame_car_images = []
@@ -17,10 +18,6 @@ CAR_VELOCITY = 5
 
 WIDTH = 800
 HEIGHT = 600
-
-# Player Constants
-START_X: int = 200
-START_Y: int = 395
 
 
 class GameWindow:
@@ -73,19 +70,23 @@ class GameWindow:
         self.myEndLine_x_coordinate = 150
         self.myEndLine_y_coordinate = -65
 
-
         # init Player
-        # print(self.player)
-        # self.myCar = pygame.image.load(self.player.car_image)
         self.myCar = pygame.image.load('img/car_1.png')
 
-        self.player = Player(x_coordinate=START_X, y_coordinate=START_Y, progress=0, tarteeb=0)
+        self.player = Player(x_coordinate=0, y_coordinate=0, progress=0, tarteeb=0)
 
         # init progress and position
         self.displayProgress()
         self.displayRank()
 
+    def client_initiliazation(self, car_data: ClientInitializer):
+        self.player.x_coordinate = car_data.start_x
+        self.player.y_coordinate = car_data.start_y
+
+        self.myCar = pygame.image.load(car_data.carImage)
+
         self.move_car(self.player)
+
 
     def handle_movements(self, game_socket: socket.socket):
         send_delay = 0.1  # Adjust this value to control the delay between movement updates

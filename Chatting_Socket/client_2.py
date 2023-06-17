@@ -2,6 +2,7 @@ import socket
 import sys
 from threading import Thread
 from PyQt5.QtCore import Qt
+import pickle
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, \
     QTextEdit, QMessageBox
@@ -82,9 +83,11 @@ def send_message():
 def read_game_signal(game_window: GameWindow):
     global game_listening_thread
 
-    game_signal = game_socket.recv(2048).decode('utf-8')
+    car_data = pickle.loads(game_socket.recv(2048))
 
-    print('game signal:', game_signal)
+    game_signal = car_data.gameSignal
+
+    game_window.client_initiliazation(car_data=car_data)
 
     if game_signal == GameSignal.START.name:
         game_movements_thread = Thread(target=game_window.handle_movements, args=(game_socket,))

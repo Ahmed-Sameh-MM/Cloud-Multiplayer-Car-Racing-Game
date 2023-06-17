@@ -1,12 +1,13 @@
 import socket
 from threading import Thread
+import pickle
 
 from message import Message
 from sql_db import SQL
 from active_client import ActiveClient
 from movement import Movement
 from car_game_client import GameWindow
-from game_signal import GameSignal
+from client_initializer import ClientInitializer
 
 from typing import List
 
@@ -25,6 +26,11 @@ LISTENER_LIMIT = 5
 active_clients: List[ActiveClient] = []
 disconnected_clients: List[ActiveClient] = []
 sql = SQL()
+
+car_data = [
+    ClientInitializer(car_image='img/car_2.png', start_x=200),
+    ClientInitializer(car_image='img/car_3.png', start_x=400)
+]
 
 
 def receive_messages(active_client: ActiveClient):
@@ -103,8 +109,9 @@ def receive_movements(game_socket: socket.socket):
 def send_start_game_signal():
     while True:
         if len(active_clients) == 2:
-            for active_client in active_clients:
-                active_client.game_socket.sendall(GameSignal.START.name.encode())
+            for index, active_client in enumerate(active_clients):
+                carData = car_data[index]
+                active_client.game_socket.sendall(pickle.dumps(carData))
             break
 
 
