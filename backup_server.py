@@ -32,6 +32,10 @@ car_data = [
 
 car_positions = {}
 
+DISCONNECTED = False
+
+DELETE_COUNTER = 0
+
 
 def receive_messages(active_client: ActiveClient):
 
@@ -101,7 +105,6 @@ def receive_movements_from_main_server():
     main_game_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
-
         main_game_socket.bind((BACKUP_SERVER_HOST, MAIN_SERVER_GAME_PORT))
         print(f"Running the server on {BACKUP_SERVER_HOST}:{MAIN_SERVER_GAME_PORT}")
     except:
@@ -124,6 +127,9 @@ def receive_movements_from_main_server():
                 # write the received message to the SQL database
                 if final_player.CarImage == '':
                     sql.update_player(final_player)
+
+                elif final_player.x_coordinate == -1000 and final_player.y_coordinate == -1000 and final_player.progress == -1000 and final_player.tarteeb == -1000 and final_player.CarImage == '-1000':
+                    sql.delete_all_players()
 
                 else:
                     sql.write_player(final_player)
@@ -188,9 +194,10 @@ def handle_client(active_client: ActiveClient):
             active_client.user_name = username
             active_clients.append(active_client)
 
-            for active_client in active_clients:
-                print(f"Successfully Reconnected to client {active_client.address_info.ip_address} : {active_client.address_info.port}")
-                recover_from_disconnection(active_client.address_info.ip_address, active_client.game_socket)
+            if DISCONNECTED:
+                for active_client in active_clients:
+                    print(f"Successfully Reconnected to client {active_client.address_info.ip_address} : {active_client.address_info.port}")
+                    recover_from_disconnection(active_client.address_info.ip_address, active_client.game_socket)
 
             prompt_message = Message(user_name='SERVER', body=f'{username} has been added to the chat')
             broadcast_message(prompt_message)
@@ -202,6 +209,7 @@ def handle_client(active_client: ActiveClient):
 
 
 def receive_movements(game_socket: socket.socket, ip_address: str):
+    global DELETE_COUNTER
     while True:
         movements = Movement.from_pickle(game_socket.recv(2048))
 
@@ -253,6 +261,13 @@ def receive_movements(game_socket: socket.socket, ip_address: str):
         # send the returned movements to all the players
         broadcast_movement(player=player)
 
+        if player.progress == 100:
+            DELETE_COUNTER = DELETE_COUNTER + 1
+
+        if DELETE_COUNTER == 2:
+            DELETE_COUNTER = 0
+            sql.delete_all_players()
+
 
 def send_start_game_signal():
     while True:
@@ -261,8 +276,8 @@ def send_start_game_signal():
             car_data[0].IpAddress = active_clients[0].address_info.ip_address
             car_data[1].IpAddress = active_clients[1].address_info.ip_address
 
-            player_1 = Player(ip_address=car_data[0].IpAddress, x_coordinate=car_data[0].start_x, y_coordinate=car_data[0].start_y, progress=0, tarteeb=0)
-            player_2 = Player(ip_address=car_data[1].IpAddress, x_coordinate=car_data[1].start_x, y_coordinate=car_data[1].start_y, progress=0, tarteeb=0)
+            player_1 = Player(ip_address=car_data[0].IpAddress, x_coordinate=car_data[0].start_x, y_coordinate=car_data[0].start_y, progress=0, tarteeb=0, car_image='img/car_2.png')
+            player_2 = Player(ip_address=car_data[1].IpAddress, x_coordinate=car_data[1].start_x, y_coordinate=car_data[1].start_y, progress=0, tarteeb=0, car_image='img/car_3.png')
 
             sql.delete_all_players()
 
@@ -281,6 +296,8 @@ def send_start_game_signal():
 
 
 def main():
+    global DISCONNECTED
+
     chat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     game_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -302,8 +319,14 @@ def main():
 
     Thread(target=receive_movements_from_main_server).start()
 
-    # checks if at least 2 players have joined the game
-    # Thread(target=send_start_game_signal).start()
+    players = sql.get_all_players()
+
+    if len(players) != 0:
+        DISCONNECTED = True
+
+    if not DISCONNECTED:
+        # checks if at least 2 players have joined the game
+        Thread(target=send_start_game_signal).start()
 
     while True:
         client_chat_socket, chat_address_info = chat_socket.accept()

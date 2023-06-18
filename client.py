@@ -201,7 +201,7 @@ def connect():
             chat_listening_thread = Thread(target=listen_for_messages_from_server)
             chat_listening_thread.start()
 
-            game_signal_thread = Thread(target=read_game_signal, args=(gameWindow,))
+            game_signal_thread = Thread(target=read_game_signal)
             game_signal_thread.start()
     else:
         show_error_message("Invalid username, Username cannot be empty")

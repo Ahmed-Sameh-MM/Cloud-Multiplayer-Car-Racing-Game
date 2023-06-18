@@ -38,6 +38,8 @@ car_data = [
 
 car_positions = {}
 
+DELETE_COUNTER = 0
+
 
 def receive_messages(active_client: ActiveClient):
 
@@ -116,14 +118,14 @@ def recover_from_disconnection(recovered_ip: str, game_socket: socket.socket):
     initializer_2 = None
 
     if recovered_index == 0:
-        initializer_1 = ClientInitializer(car_image=recovered_player.CarImage, start_x=recovered_player.x_coordinate, start_y= recovered_player.x_coordinate, ip_address=recovered_ip, progress=recovered_player.progress)
+        initializer_1 = ClientInitializer(car_image=recovered_player.CarImage, start_x=recovered_player.x_coordinate, start_y= recovered_player.y_coordinate, ip_address=recovered_ip, progress=recovered_player.progress)
 
-        initializer_2 = ClientInitializer(car_image=other_player.CarImage, start_x=other_player.x_coordinate, start_y= other_player.x_coordinate, ip_address=other_player_ip, progress=other_player.progress)
+        initializer_2 = ClientInitializer(car_image=other_player.CarImage, start_x=other_player.x_coordinate, start_y= other_player.y_coordinate, ip_address=other_player_ip, progress=other_player.progress)
 
     elif recovered_index == 1:
-        initializer_1 = ClientInitializer(car_image=other_player.CarImage, start_x=other_player.x_coordinate, start_y=other_player.x_coordinate, ip_address=other_player_ip, progress=other_player.progress)
+        initializer_1 = ClientInitializer(car_image=other_player.CarImage, start_x=other_player.x_coordinate, start_y=other_player.y_coordinate, ip_address=other_player_ip, progress=other_player.progress)
 
-        initializer_2 = ClientInitializer(car_image=recovered_player.CarImage, start_x=recovered_player.x_coordinate, start_y=recovered_player.x_coordinate, ip_address=recovered_ip, progress=recovered_player.progress)
+        initializer_2 = ClientInitializer(car_image=recovered_player.CarImage, start_x=recovered_player.x_coordinate, start_y=recovered_player.y_coordinate, ip_address=recovered_ip, progress=recovered_player.progress)
 
     car_data_recovered.append(initializer_1)
     car_data_recovered.append(initializer_2)
@@ -158,6 +160,8 @@ def handle_client(active_client: ActiveClient):
 
 
 def receive_movements(game_socket: socket.socket, ip_address: str):
+    global DELETE_COUNTER
+
     while True:
         movements = Movement.from_pickle(game_socket.recv(2048))
 
@@ -210,6 +214,15 @@ def receive_movements(game_socket: socket.socket, ip_address: str):
 
         # send the returned movements to all the players
         broadcast_movement(player=player)
+
+        if player.progress == 100:
+            DELETE_COUNTER = DELETE_COUNTER + 1
+
+        if DELETE_COUNTER == 2:
+            DELETE_COUNTER = 0
+            empty_player = Player(x_coordinate=-1000, y_coordinate=-1000, progress=-1000, tarteeb=-1000, car_image='-1000')
+            send_movement_to_backup_server(empty_player.to_pickle())
+            sql.delete_all_players()
 
 
 def send_start_game_signal():
