@@ -71,6 +71,7 @@ class GameWindow:
         self.player.x_coordinate = initialization_data.car_data_list[currentPlayerIndex].start_x
         self.player.y_coordinate = initialization_data.car_data_list[currentPlayerIndex].start_y
         self.player.IpAddress = initialization_data.car_data_list[currentPlayerIndex].IpAddress
+        self.player.progress = initialization_data.car_data_list[currentPlayerIndex].progress
 
         self.myCar = pygame.image.load(initialization_data.car_data_list[currentPlayerIndex].carImage)
 
@@ -84,6 +85,7 @@ class GameWindow:
         self.otherPlayer.x_coordinate = initialization_data.car_data_list[otherPlayerIndex].start_x
         self.otherPlayer.y_coordinate = initialization_data.car_data_list[otherPlayerIndex].start_y
         self.otherPlayer.IpAddress = initialization_data.car_data_list[otherPlayerIndex].IpAddress
+        self.otherPlayer.progress = initialization_data.car_data_list[otherPlayerIndex].progress
 
         self.otherCar = pygame.image.load(initialization_data.car_data_list[otherPlayerIndex].carImage)
 

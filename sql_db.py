@@ -21,7 +21,7 @@ class SQL:
         self.cursor.execute("SELECT * FROM Player WHERE IpAddress = ?", (ip_address,))
         player = self.cursor.fetchone()
         if player:
-            return player
+            return Player.from_sql(player)
         else:
             print('Player Not Found')
             return None

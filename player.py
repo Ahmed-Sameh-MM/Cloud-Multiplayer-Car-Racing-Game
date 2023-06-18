@@ -24,3 +24,7 @@ class Player:
 
     def player_update_tuple(self) -> tuple:
         return self.x_coordinate, self.y_coordinate, self.progress, self.IpAddress
+
+    @classmethod
+    def from_sql(cls, sql_tuple):
+        return cls(sql_tuple[1], sql_tuple[2], sql_tuple[3], 0, sql_tuple[0])

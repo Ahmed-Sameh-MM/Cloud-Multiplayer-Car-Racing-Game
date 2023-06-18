@@ -19,8 +19,7 @@ MAIN_SERVER_GAME_PORT = 20001
 
 
 BACKUP_SERVER_HOST = '20.51.244.35'
-BACKUP_SERVER_CHAT_PORT = 40000
-BACKUP_SERVER_GAME_PORT = 40001
+BACKUP_SERVER_PORT = 40000
 backup_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 LISTENER_LIMIT = 5
@@ -33,6 +32,7 @@ car_data = [
     ClientInitializer(car_image='img/car_2.png', start_x=200),
     ClientInitializer(car_image='img/car_3.png', start_x=400)
 ]
+
 
 car_positions = {}
 
@@ -89,12 +89,58 @@ def broadcast_movement(player: Player):
         send_movement(active_client.game_socket, player)
 
 
+def recover_from_disconnection(recovered_ip: str, game_socket: socket.socket):
+    car_data_recovered = []
+
+    recovered_index = None
+    other_player_index = None
+
+    for index, car in enumerate(car_data):
+        if car.IpAddress == recovered_ip:
+            recovered_index = index
+
+    other_player_index = 0 if recovered_index == 1 else 1
+
+    other_player_ip = car_data[other_player_index].IpAddress
+
+    recovered_player = sql.get_player(ip_address=car_data[recovered_index].IpAddress)
+    other_player = sql.get_player(ip_address=other_player_ip)
+
+    initializer_1 = None
+    initializer_2 = None
+
+    if recovered_index == 0:
+        initializer_1 = ClientInitializer(car_image=car_data[0].carImage, start_x=recovered_player.x_coordinate, start_y= recovered_player.x_coordinate, ip_address=recovered_ip, progress=recovered_player.progress)
+
+        initializer_2 = ClientInitializer(car_image=car_data[1].carImage, start_x=other_player.x_coordinate, start_y= other_player.x_coordinate, ip_address=other_player_ip, progress=other_player.progress)
+
+    elif recovered_index == 1:
+        initializer_1 = ClientInitializer(car_image=car_data[0].carImage, start_x=other_player.x_coordinate, start_y=other_player.x_coordinate, ip_address=other_player_ip, progress=other_player.progress)
+
+        initializer_2 = ClientInitializer(car_image=car_data[1].carImage, start_x=recovered_player.x_coordinate, start_y=recovered_player.x_coordinate, ip_address=recovered_ip, progress=recovered_player.progress)
+
+    car_data_recovered.append(initializer_1)
+    car_data_recovered.append(initializer_2)
+
+    initializationData = InitializationData(car_data_list=car_data_recovered, index=recovered_index)
+    game_socket.sendall(pickle.dumps(initializationData))
+
+    for disconnected_client in disconnected_clients:
+        if disconnected_client.address_info.ip_address == recovered_ip:
+            disconnected_clients.remove(disconnected_client)
+
+
 def handle_client(active_client: ActiveClient):
     while True:
         username = active_client.chat_socket.recv(2048).decode('utf-8')
         if username:
             active_client.user_name = username
             active_clients.append(active_client)
+
+            for disconnected_client in disconnected_clients:
+                if active_client.address_info.ip_address == disconnected_client.address_info.ip_address:
+                    print(f"Successfully Reconnected to client {active_client.address_info.ip_address} : {active_client.address_info.port}")
+                    recover_from_disconnection(active_client.address_info.ip_address, active_client.game_socket)
 
             prompt_message = Message(user_name='SERVER', body=f'{username} has been added to the chat')
             broadcast_message(prompt_message)
@@ -204,7 +250,7 @@ def main():
 
     # backup server socket connection
 
-    # backup_server_socket.connect((BACKUP_SERVER_HOST, BACKUP_SERVER_CHAT_PORT))
+    # backup_server_socket.connect((BACKUP_SERVER_HOST, BACKUP_SERVER_PORT))
 
     # checks if at least 2 players have joined the game
     Thread(target=send_start_game_signal).start()
@@ -213,16 +259,16 @@ def main():
         client_chat_socket, chat_address_info = chat_socket.accept()
         client_game_socket, game_address_info = game_socket.accept()
 
-        for x in disconnected_clients:
-            if chat_address_info[0] == x.address_info.ip_address:
-                print(f"Successfully Reconnected to client {chat_address_info[0]}:{chat_address_info[1]}")
-
-                # player_data = sql.get_player(ip_address=ip_address)
-
-                # sending all the player data before disconnection
-
-                # client_socket.sendall(all_messages.to_json().encode())
-                # client_socket.sendall(player_data)
+        # for x in disconnected_clients:
+        #     if game_address_info[0] == x.address_info.ip_address:
+        #         print(f"Successfully Reconnected to client {chat_address_info[0]}:{chat_address_info[1]}")
+        #
+        #         # player_data = sql.get_player(ip_address=ip_address)
+        #
+        #         # sending all the player data before disconnection
+        #
+        #         # client_socket.sendall(all_messages.to_json().encode())
+        #         # client_socket.sendall(player_data)
 
         print(f"Successfully connected to client {chat_address_info[0]}:{chat_address_info[1]}")
 
