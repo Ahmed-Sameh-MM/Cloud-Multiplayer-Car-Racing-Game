@@ -12,7 +12,7 @@ HEIGHT = 600
 def handle_movements_server(movements: Movement, ip_address: str):
     player = Player(x_coordinate=movements.x_coordinate, y_coordinate=movements.y_coordinate,
                     progress=movements.progress, tarteeb=0,
-                    ip_address=ip_address)
+                    ip_address=ip_address, car_image='')
 
     # check for car movements in road
     if movements.left and movements.x_coordinate - CAR_VELOCITY >= 0:

@@ -17,7 +17,7 @@ class GameWindow:
 
     def __init__(self):
 
-        self.run = False
+        self.run = True
 
         # initialize constants
         self.BG_SPEED = 3
@@ -50,11 +50,11 @@ class GameWindow:
 
         # init Player
         self.myCar = None
-        self.player = Player(x_coordinate=0, y_coordinate=0, progress=0, tarteeb=0)
+        self.player = Player(x_coordinate=0, y_coordinate=0, progress=0, tarteeb=0, car_image='')
 
         # init the other Player
         self.otherCar = None
-        self.otherPlayer = Player(x_coordinate=0, y_coordinate=0, progress=0, tarteeb=0)
+        self.otherPlayer = Player(x_coordinate=0, y_coordinate=0, progress=0, tarteeb=0, car_image='')
 
         # init progress and position
         self.display_progress()
@@ -66,6 +66,8 @@ class GameWindow:
 
         pygame.display.update()
 
+        self.SWITCH = False
+
     def client_initiliazation(self, initialization_data: InitializationData):
         currentPlayerIndex = initialization_data.index
         self.player.x_coordinate = initialization_data.car_data_list[currentPlayerIndex].start_x
@@ -73,7 +75,9 @@ class GameWindow:
         self.player.IpAddress = initialization_data.car_data_list[currentPlayerIndex].IpAddress
         self.player.progress = initialization_data.car_data_list[currentPlayerIndex].progress
 
-        self.myCar = pygame.image.load(initialization_data.car_data_list[currentPlayerIndex].carImage)
+        self.player.CarImage = initialization_data.car_data_list[currentPlayerIndex].carImage
+
+        self.myCar = pygame.image.load(self.player.CarImage)
 
         otherPlayerIndex = None
 
@@ -87,17 +91,22 @@ class GameWindow:
         self.otherPlayer.IpAddress = initialization_data.car_data_list[otherPlayerIndex].IpAddress
         self.otherPlayer.progress = initialization_data.car_data_list[otherPlayerIndex].progress
 
-        self.otherCar = pygame.image.load(initialization_data.car_data_list[otherPlayerIndex].carImage)
+        self.otherPlayer.CarImage = initialization_data.car_data_list[otherPlayerIndex].carImage
+
+        self.otherCar = pygame.image.load(self.otherPlayer.CarImage)
 
         self.move_my_car()
 
         self.move_other_car()
 
-    def handle_movements(self, game_socket: socket.socket):
-        send_delay = 1  # Adjust this value to control the delay between movement updates
+    def change_switch(self):
+        self.SWITCH = True
+
+    def handle_movements(self, game_socket: socket.socket, game_socket_2: socket.socket):
+        send_delay = 0.4  # Adjust this value to control the delay between movement updates
         last_sent_time = time.time()
 
-        while True:
+        while self.run:
             keys = pygame.key.get_pressed()
 
             previous_x_coordinate = self.player.x_coordinate
@@ -125,7 +134,12 @@ class GameWindow:
             # Check if enough time has passed since the last movement update
             if time.time() - last_sent_time >= send_delay:
                 # send the movement list
-                game_socket.sendall(movement.to_pickle())
+                if self.SWITCH:
+                    game_socket_2.sendall(movement.to_pickle())
+
+                else:
+                    game_socket.sendall(movement.to_pickle())
+
                 last_sent_time = time.time()  # Update the last sent time
 
             # Add a small delay to control the frequency of movement updates
@@ -138,17 +152,24 @@ class GameWindow:
 
         other_player_rank = 2 if player_rank == 1 else 1
 
+        playerImage = self.player.CarImage
+        otherPlayerImage = self.player.CarImage
+
         if player.IpAddress == self.player.IpAddress:
             self.player = player
+
+            self.player.CarImage = playerImage
 
             self.otherPlayer.tarteeb = other_player_rank
 
         elif player.IpAddress == self.otherPlayer.IpAddress:
             self.otherPlayer = player
 
+            self.otherPlayer.CarImage = otherPlayerImage
+
             self.player.tarteeb = other_player_rank
 
-        if self.player.progress == 100:
+        if END_MESSAGE == '' and self.player.progress == 100:
             END_MESSAGE = 'U WON !'
 
         elif self.otherPlayer.progress == 100:
@@ -165,9 +186,9 @@ class GameWindow:
         self.WIN.blit(position, (30, 60))
 
     def start_race(self):
-        run = True
+        self.run = True
 
-        while run:
+        while self.run:
             # Just to configure fps
             self.clock.tick(60)
 
@@ -176,7 +197,7 @@ class GameWindow:
                 # if quit button is clicked
                 # break out of this while loop and stop pygame instance
                 if event.type == pygame.QUIT:
-                    run = False
+                    self.run = False
                     break
 
             # self.handleMovements()
@@ -211,14 +232,14 @@ class GameWindow:
                 pygame.display.update()
 
                 sleep(5)
-                run = False
+                self.run = False
 
             # self.render_players()
             self.display_progress()
             self.display_rank()
             pygame.display.update()
 
-        # this line will be reached only if run = False
+        # this line will be reached only if self.run = False
         pygame.quit()
 
     def draw_street(self):

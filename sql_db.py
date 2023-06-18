@@ -29,13 +29,16 @@ class SQL:
     def get_all_players(self):
         self.cursor.execute("SELECT * FROM Player")
         rows = self.cursor.fetchall()
+        players = []
         for row in rows:
-            print(row)
+            players.append(Player.from_sql(row))
+
+        return players
 
     # Write data to a table
     def write_player(self, player: Player):
         data = player.player_tuple()
-        self.cursor.execute("INSERT INTO Player (IpAddress, X_Coordinate, Y_Coordinate, Progress) VALUES (?, ?, ?, ?)", data)
+        self.cursor.execute("INSERT INTO Player (IpAddress, X_Coordinate, Y_Coordinate, Progress, CarImage) VALUES (?, ?, ?, ?, ?)", data)
         self.conn.commit()
 
     def update_player(self, player: Player):

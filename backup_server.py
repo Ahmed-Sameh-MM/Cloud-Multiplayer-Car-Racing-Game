@@ -14,7 +14,9 @@ from car_game_server import handle_movements_server
 from typing import List
 
 BACKUP_SERVER_HOST = ''
-BACKUP_SERVER_PORT = 40000
+MAIN_SERVER_CHAT_PORT = 40000
+MAIN_SERVER_GAME_PORT = 40001
+
 BACKUP_SERVER_CHAT_PORT = 20000
 BACKUP_SERVER_GAME_PORT = 20001
 LISTENER_LIMIT = 5
@@ -59,25 +61,26 @@ def receive_messages(active_client: ActiveClient):
             break
 
 
-def receive_from_main_server():
+def receive_messages_from_main_server():
 
-    backup_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    main_chat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
-        backup_socket.bind((BACKUP_SERVER_HOST, BACKUP_SERVER_PORT))
-        print(f"Running the server on {BACKUP_SERVER_HOST}:{BACKUP_SERVER_PORT}")
+        main_chat_socket.bind((BACKUP_SERVER_HOST, MAIN_SERVER_CHAT_PORT))
+        print(f"Running the server on {BACKUP_SERVER_HOST}:{MAIN_SERVER_CHAT_PORT}")
+
     except:
-        print(f"Unable to bind to host {BACKUP_SERVER_HOST} and port {BACKUP_SERVER_PORT}")
+        print(f"Unable to bind to host {BACKUP_SERVER_HOST} and port {MAIN_SERVER_CHAT_PORT}")
 
-    backup_socket.listen(1)
+    main_chat_socket.listen(1)
 
-    connection_socket, address_info = backup_socket.accept()
+    main_server_chat_socket, main_server_chat_address_info = main_chat_socket.accept()
 
-    print(f"Successfully connected to the Main Server @ {address_info[0]}:{address_info[1]}")
+    print(f"Successfully connected to the Main Server @ {main_server_chat_address_info[0]}:{main_server_chat_address_info[1]}")
 
     while True:
         try:
-            message = connection_socket.recv(2048).decode('utf-8')
+            message = main_server_chat_socket.recv(2048).decode('utf-8')
             if message:
                 final_message = Message.from_json(message)
 
@@ -85,9 +88,53 @@ def receive_from_main_server():
                 sql.write_message(final_message)
             else:
                 print("The message sent from the main server is empty")
+                main_server_chat_socket.close()
+                break
 
         except ConnectionResetError:
-            connection_socket.close()
+            main_server_chat_socket.close()
+            break
+
+
+def receive_movements_from_main_server():
+
+    main_game_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    try:
+
+        main_game_socket.bind((BACKUP_SERVER_HOST, MAIN_SERVER_GAME_PORT))
+        print(f"Running the server on {BACKUP_SERVER_HOST}:{MAIN_SERVER_GAME_PORT}")
+    except:
+        print(f"Unable to bind to host {BACKUP_SERVER_HOST} and port {MAIN_SERVER_CHAT_PORT}")
+
+    main_game_socket.listen(1)
+
+    main_server_game_socket, main_server_game_address_info = main_game_socket.accept()
+
+    print(f"Successfully connected to the Main Server @ {main_server_game_address_info[0]}:{main_server_game_address_info[1]}")
+
+    sql.delete_all_players()
+
+    while True:
+        try:
+            player = main_server_game_socket.recv(2048)
+            if player:
+                final_player = Player.from_pickle(player)
+
+                # write the received message to the SQL database
+                if final_player.CarImage == '':
+                    sql.update_player(final_player)
+
+                else:
+                    sql.write_player(final_player)
+
+            else:
+                print("The message sent from the main server is empty")
+                main_server_game_socket.close()
+                break
+
+        except ConnectionResetError:
+            main_server_game_socket.close()
             break
 
 
@@ -109,12 +156,41 @@ def broadcast_movement(player: Player):
         send_movement(active_client.game_socket, player)
 
 
+def recover_from_disconnection(recovered_ip: str, game_socket: socket.socket):
+    car_data_recovered = []
+
+    players = sql.get_all_players()
+
+    recovered_player = None
+    other_player = None
+
+    for player in players:
+        if recovered_ip == player.IpAddress:
+            recovered_player = player
+        else:
+            other_player = player
+
+    initializer_1 = ClientInitializer(car_image=recovered_player.CarImage, start_x=recovered_player.x_coordinate, start_y= recovered_player.x_coordinate, ip_address=recovered_ip, progress=recovered_player.progress)
+
+    initializer_2 = ClientInitializer(car_image=other_player.CarImage, start_x=other_player.x_coordinate, start_y= other_player.x_coordinate, ip_address=other_player.IpAddress, progress=other_player.progress)
+
+    car_data_recovered.append(initializer_1)
+    car_data_recovered.append(initializer_2)
+
+    initializationData = InitializationData(car_data_list=car_data_recovered, index=0)
+    game_socket.sendall(pickle.dumps(initializationData))
+
+
 def handle_client(active_client: ActiveClient):
     while True:
         username = active_client.chat_socket.recv(2048).decode('utf-8')
         if username:
             active_client.user_name = username
             active_clients.append(active_client)
+
+            for active_client in active_clients:
+                print(f"Successfully Reconnected to client {active_client.address_info.ip_address} : {active_client.address_info.port}")
+                recover_from_disconnection(active_client.address_info.ip_address, active_client.game_socket)
 
             prompt_message = Message(user_name='SERVER', body=f'{username} has been added to the chat')
             broadcast_message(prompt_message)
@@ -222,10 +298,12 @@ def main():
 
     game_socket.listen(LISTENER_LIMIT)
 
-    Thread(target=receive_from_main_server).start()
+    Thread(target=receive_messages_from_main_server).start()
+
+    Thread(target=receive_movements_from_main_server).start()
 
     # checks if at least 2 players have joined the game
-    Thread(target=send_start_game_signal).start()
+    # Thread(target=send_start_game_signal).start()
 
     while True:
         client_chat_socket, chat_address_info = chat_socket.accept()

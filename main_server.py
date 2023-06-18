@@ -19,8 +19,10 @@ MAIN_SERVER_GAME_PORT = 20001
 
 
 BACKUP_SERVER_HOST = '20.51.244.35'
-BACKUP_SERVER_PORT = 40000
-backup_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+BACKUP_SERVER_CHAT_PORT = 40000
+BACKUP_SERVER_GAME_PORT = 40001
+backup_server_chat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+backup_server_game_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 LISTENER_LIMIT = 5
 
@@ -49,7 +51,7 @@ def receive_messages(active_client: ActiveClient):
                 # write the received message to the SQL database
                 sql.write_message(final_message)
 
-                # send_message_to_backup_server(final_message)
+                send_message_to_backup_server(final_message)
             else:
                 print(f"The message sent from client {active_client.user_name} is empty")
 
@@ -72,7 +74,7 @@ def send_message(client_socket, message: Message):
 
 
 def send_message_to_backup_server(message: Message):
-    backup_server_socket.sendall(message.to_json().encode())
+    backup_server_chat_socket.sendall(message.to_json().encode())
 
 
 def broadcast_message(message: Message):
@@ -82,6 +84,10 @@ def broadcast_message(message: Message):
 
 def send_movement(client_socket, player: Player):
     client_socket.sendall(player.to_pickle())
+
+
+def send_movement_to_backup_server(player: Player):
+    backup_server_game_socket.sendall(player.to_pickle())
 
 
 def broadcast_movement(player: Player):
@@ -110,14 +116,14 @@ def recover_from_disconnection(recovered_ip: str, game_socket: socket.socket):
     initializer_2 = None
 
     if recovered_index == 0:
-        initializer_1 = ClientInitializer(car_image=car_data[0].carImage, start_x=recovered_player.x_coordinate, start_y= recovered_player.x_coordinate, ip_address=recovered_ip, progress=recovered_player.progress)
+        initializer_1 = ClientInitializer(car_image=recovered_player.CarImage, start_x=recovered_player.x_coordinate, start_y= recovered_player.x_coordinate, ip_address=recovered_ip, progress=recovered_player.progress)
 
-        initializer_2 = ClientInitializer(car_image=car_data[1].carImage, start_x=other_player.x_coordinate, start_y= other_player.x_coordinate, ip_address=other_player_ip, progress=other_player.progress)
+        initializer_2 = ClientInitializer(car_image=other_player.CarImage, start_x=other_player.x_coordinate, start_y= other_player.x_coordinate, ip_address=other_player_ip, progress=other_player.progress)
 
     elif recovered_index == 1:
-        initializer_1 = ClientInitializer(car_image=car_data[0].carImage, start_x=other_player.x_coordinate, start_y=other_player.x_coordinate, ip_address=other_player_ip, progress=other_player.progress)
+        initializer_1 = ClientInitializer(car_image=other_player.CarImage, start_x=other_player.x_coordinate, start_y=other_player.x_coordinate, ip_address=other_player_ip, progress=other_player.progress)
 
-        initializer_2 = ClientInitializer(car_image=car_data[1].carImage, start_x=recovered_player.x_coordinate, start_y=recovered_player.x_coordinate, ip_address=recovered_ip, progress=recovered_player.progress)
+        initializer_2 = ClientInitializer(car_image=recovered_player.CarImage, start_x=recovered_player.x_coordinate, start_y=recovered_player.x_coordinate, ip_address=recovered_ip, progress=recovered_player.progress)
 
     car_data_recovered.append(initializer_1)
     car_data_recovered.append(initializer_2)
@@ -170,6 +176,8 @@ def receive_movements(game_socket: socket.socket, ip_address: str):
 
         sql.update_player(player)
 
+        send_movement_to_backup_server(player)
+
         if car_data[0].IpAddress == ip_address:
             print('Player 1')
 
@@ -211,13 +219,16 @@ def send_start_game_signal():
             car_data[0].IpAddress = active_clients[0].address_info.ip_address
             car_data[1].IpAddress = active_clients[1].address_info.ip_address
 
-            player_1 = Player(ip_address=car_data[0].IpAddress, x_coordinate=car_data[0].start_x, y_coordinate=car_data[0].start_y, progress=0, tarteeb=0)
-            player_2 = Player(ip_address=car_data[1].IpAddress, x_coordinate=car_data[1].start_x, y_coordinate=car_data[1].start_y, progress=0, tarteeb=0)
+            player_1 = Player(ip_address=car_data[0].IpAddress, x_coordinate=car_data[0].start_x, y_coordinate=car_data[0].start_y, progress=0, tarteeb=0, car_image='img/car_2.png')
+            player_2 = Player(ip_address=car_data[1].IpAddress, x_coordinate=car_data[1].start_x, y_coordinate=car_data[1].start_y, progress=0, tarteeb=0, car_image='img/car_3.png')
 
             sql.delete_all_players()
 
             sql.write_player(player_1)
             sql.write_player(player_2)
+
+            send_movement_to_backup_server(player_1)
+            send_movement_to_backup_server(player_2)
 
             car_positions.clear()
 
@@ -241,6 +252,7 @@ def main():
 
         game_socket.bind((MAIN_SERVER_HOST, MAIN_SERVER_GAME_PORT))
         print(f"Running the game socket on {MAIN_SERVER_HOST}:{MAIN_SERVER_GAME_PORT}")
+
     except:
         print(f"Unable to bind to host {MAIN_SERVER_HOST} and port {MAIN_SERVER_CHAT_PORT}")
 
@@ -250,7 +262,9 @@ def main():
 
     # backup server socket connection
 
-    # backup_server_socket.connect((BACKUP_SERVER_HOST, BACKUP_SERVER_PORT))
+    backup_server_chat_socket.connect((BACKUP_SERVER_HOST, BACKUP_SERVER_CHAT_PORT))
+
+    backup_server_game_socket.connect((BACKUP_SERVER_HOST, BACKUP_SERVER_GAME_PORT))
 
     # checks if at least 2 players have joined the game
     Thread(target=send_start_game_signal).start()

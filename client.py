@@ -17,14 +17,40 @@ MAIN_HOST = '40.76.226.192'
 BACKUP_HOST = '20.51.244.35'
 CHAT_PORT = 20000
 GAME_PORT = 20001
+CHECKING_PORT = 20002
 # Creating a socket object
 # AF_INET: we are going to use IPv4 addresses
 # SOCK_STREAM: we are using TCP packets for communication
 chat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 game_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+chat_socket_2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+game_socket_2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
 chat_listening_thread = Thread()
 game_listening_thread = Thread()
+
+SWITCH = False
+
+gameWindow = None
+
+
+def switch_to_backup():
+    global SWITCH
+
+    if SWITCH:
+        return
+
+    # Connect to the backup server
+    chat_socket_2.connect((BACKUP_HOST, CHAT_PORT))
+    game_socket_2.connect((BACKUP_HOST, GAME_PORT))
+    SWITCH = True
+
+    chat_socket_2.sendall(username.encode())
+
+    print("Successfully connected to backup server")
+
+    gameWindow.change_switch()
 
 
 def open_window2():
@@ -35,31 +61,47 @@ def open_window2():
     window2.show()
 
 
-def listen_for_messages_from_server(client):
+def listen_for_messages_from_server():
     while True:
-        message = client.recv(2048).decode('utf-8')
-        print(message)
-        if message != '':
-            final_message = Message.from_json(message)
-            add_message(final_message.format_message())
+        try:
+            message = None
+            if SWITCH:
+                message = chat_socket_2.recv(2048).decode('utf-8')
+            else:
+                message = chat_socket.recv(2048).decode('utf-8')
+            print(message)
+            if message != '':
+                final_message = Message.from_json(message)
+                add_message(final_message.format_message())
 
-        else:
-            print("Message received from server is empty")
+            else:
+                print("Message received from server is empty")
+        except:
+            print('SOCKET ERROR listen_for_messages_from_server()')
+            switch_to_backup()
 
 
-def listen_for_movements_from_server(game_socket: socket.socket, game_window: GameWindow):
+def listen_for_movements_from_server():
     while True:
-        player_data = game_socket.recv(2048)
-        if player_data != '':
-            final_player_data = Player.from_pickle(player_data)
+        try:
+            if SWITCH:
+                player_data = game_socket_2.recv(2048)
+            else:
+                player_data = game_socket.recv(2048)
+            if player_data != '':
+                final_player_data = Player.from_pickle(player_data)
 
-            print('x_coordinate', final_player_data.x_coordinate, 'y_coordinate', final_player_data.y_coordinate)
+                print('x_coordinate', final_player_data.x_coordinate, 'y_coordinate', final_player_data.y_coordinate)
 
-            # update the player data
-            game_window.update_player_data(final_player_data)
+                # update the player data
+                gameWindow.update_player_data(final_player_data)
 
-        else:
-            print("Player Data received from server is empty")
+            else:
+                print("Player Data received from server is empty")
+
+        except:
+            print('SOCKET ERROR listen_for_movements_from_server()')
+            switch_to_backup()
 
 
 def add_message(message: str):
@@ -73,60 +115,94 @@ def clear():
 
 def send_message():
     message = text_editor.text()
-    if message != '':
-        chat_socket.sendall(message.encode())
-        text_editor.clear()
-    else:
-        show_error_message("Empty message, Message cannot be empty")
+
+    try:
+        if message != '':
+            if SWITCH:
+                chat_socket_2.sendall(message.encode())
+            else:
+                chat_socket.sendall(message.encode())
+            text_editor.clear()
+        else:
+            show_error_message("Empty message, Message cannot be empty")
+
+    except:
+        print('SOCKET ERROR send_message()')
+        switch_to_backup()
 
 
-def read_game_signal(game_window: GameWindow):
+def read_game_signal():
     global game_listening_thread
 
-    initializationData = pickle.loads(game_socket.recv(2048))
+    try:
+        initializationData = pickle.loads(game_socket.recv(2048))
 
-    game_signal = initializationData.car_data_list[initializationData.index].gameSignal
+        game_signal = initializationData.car_data_list[initializationData.index].gameSignal
 
-    game_window.client_initiliazation(initialization_data=initializationData)
+        gameWindow.client_initiliazation(initialization_data=initializationData)
 
-    if game_signal == GameSignal.START.name:
-        game_movements_thread = Thread(target=game_window.handle_movements, args=(game_socket,))
-        game_movements_thread.start()
+        if game_signal == GameSignal.START.name:
+            game_movements_thread = Thread(target=gameWindow.handle_movements, args=(game_socket, game_socket_2))
+            game_movements_thread.start()
 
-        game_listening_thread = Thread(target=listen_for_movements_from_server, args=(game_socket, game_window))
-        game_listening_thread.start()
+            game_listening_thread = Thread(target=listen_for_movements_from_server)
+            game_listening_thread.start()
 
-        # race car game running thread
-        race_game_thread = Thread(target=game_window.start_race)
-        race_game_thread.start()
+            # race car game running thread
+            race_game_thread = Thread(target=gameWindow.start_race)
+            race_game_thread.start()
+
+    except:
+        print('SOCKET ERROR read_game_signal()')
+        switch_to_backup()
 
 
 def connect():
-    global chat_listening_thread, game_listening_thread
+    global chat_listening_thread, game_listening_thread, gameWindow
 
     # try except block
     username = username_field.text()
     if username != '':
         try:
-            # Connect to the server
+            # Connect to the main server
             chat_socket.connect((MAIN_HOST, CHAT_PORT))
             game_socket.connect((MAIN_HOST, GAME_PORT))
-            print("Successfully connected to server")
+            print("Successfully connected to main server")
 
             open_window2()
             gameWindow = GameWindow()
 
-            add_message("[SERVER] Successfully connected to the server")
+            add_message("[SERVER] Successfully connected to the main server")
             chat_socket.sendall(username.encode())
 
-            chat_listening_thread = Thread(target=listen_for_messages_from_server, args=(chat_socket,))
+            chat_listening_thread = Thread(target=listen_for_messages_from_server)
             chat_listening_thread.start()
 
-            game_signal_thread = Thread(target=read_game_signal, args=(gameWindow, ))
+            game_signal_thread = Thread(target=read_game_signal)
             game_signal_thread.start()
 
+            # checking_thread = Thread(target=check_main_server_connection)
+            # checking_thread.start()
+
         except:
-            show_error_message(f"Unable to connect to server, Unable to connect to server {MAIN_HOST} {CHAT_PORT}")
+            show_error_message(f"Unable to connect to server, Unable to connect to the MAIN server at {MAIN_HOST}:{CHAT_PORT}")
+
+            # Connect to the backup server
+            chat_socket.connect((BACKUP_HOST, CHAT_PORT))
+            game_socket.connect((BACKUP_HOST, GAME_PORT))
+            print("Successfully connected to backup server")
+
+            open_window2()
+            gameWindow = GameWindow()
+
+            add_message("[SERVER] Successfully connected to the backup server")
+            chat_socket.sendall(username.encode())
+
+            chat_listening_thread = Thread(target=listen_for_messages_from_server)
+            chat_listening_thread.start()
+
+            game_signal_thread = Thread(target=read_game_signal, args=(gameWindow,))
+            game_signal_thread.start()
     else:
         show_error_message("Invalid username, Username cannot be empty")
 
